@@ -1,0 +1,12 @@
+{
+  "name": "리아의 공주 옷장",
+  "short_name": "리아",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#2a1338",
+  "theme_color": "#2a1338",
+  "icons": [
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
