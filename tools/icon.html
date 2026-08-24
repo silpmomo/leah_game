@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>아이콘</title>
+    <style>
+      html, body { margin: 0; background: #fff; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="180" height="180"></canvas>
+    <script type="module">
+      import { paintCrop, paintShape } from '/src/render/paint.ts'
+      import { composeDoll } from '/src/doll/outfit.ts'
+      import { rectPath, circlePath, starPath, linear } from '/src/engine/shapes.ts'
+
+      const ctx = document.getElementById('c').getContext('2d')
+      paintShape(ctx, {
+        d: rectPath(0, 0, 180, 180),
+        fill: linear(0, 0, 0, 180, [[0, '#5b2470'], [1, '#c05a9a']]),
+      })
+      for (let i = 0; i < 12; i++) {
+        paintShape(ctx, {
+          d: starPath((i * 53) % 180, (i * 71) % 180, 4, 1.6),
+          fill: 'rgba(255,255,255,.35)',
+        })
+      }
+      paintShape(ctx, { d: circlePath(90, 96, 74), fill: 'rgba(255,255,255,.12)' })
+
+      // 왕관 쓴 리아의 얼굴
+      const shapes = composeDoll({
+        crown: 'crown-gold-royal',
+        hair: 'hair-long-brown',
+        dress: 'dress-star-blue',
+      }, { expr: 'happy' })
+      paintCrop(ctx, shapes, { x: 6, y: 6, w: 168, h: 168 }, { x: 30, y: 4, w: 140, h: 150 })
+
+      document.title = 'ready'
+    </script>
+  </body>
+</html>

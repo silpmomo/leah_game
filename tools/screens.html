@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>화면 미리보기</title>
+    <style>
+      body { margin: 0; background: #1a0c22; font: 11px sans-serif; color: #fff; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; }
+      figure { margin: 0; }
+      figcaption { text-align: center; padding: 4px; }
+      canvas { border: 1px solid #553; display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="row" id="row"></div>
+    <script type="module">
+      import { VIEW_W, VIEW_H } from '/src/engine/view.ts'
+      import { drawHub } from '/src/ui/hub.ts'
+      import { drawCloset, drawBackdropPicker, drawLookbook } from '/src/ui/closetScreen.ts'
+      import { drawMissionList, drawDressScreen, drawResult } from '/src/ui/runwayScreen.ts'
+      import { drawCrownScreen } from '/src/ui/crownScreen.ts'
+      import { drawRoomScreen } from '/src/ui/roomScreen.ts'
+      import { drawAlbum } from '/src/ui/albumScreen.ts'
+      import { drawStickerToast } from '/src/render/stickerToast.ts'
+      import { itemById, itemsOf } from '/src/doll/wardrobe.ts'
+      import { MISSIONS } from '/src/runway/missions.ts'
+      import { metFlags } from '/src/runway/rules.ts'
+      import { emptyDesign } from '/src/doll/custom.ts'
+      import { STICKERS } from '/src/stickers/album.ts'
+      import { place } from '/src/room/rules.ts'
+
+      const row = document.getElementById('row')
+      function panel(name, draw) {
+        const fig = document.createElement('figure')
+        const c = document.createElement('canvas')
+        c.width = VIEW_W; c.height = VIEH()
+        const cap = document.createElement('figcaption')
+        cap.textContent = name
+        fig.append(c, cap); row.append(fig)
+        draw(c.getContext('2d'))
+      }
+      function VIEH() { return VIEW_H }
+
+      const resolve = itemById
+      const outfit = {
+        dress: 'dress-star-blue', hair: 'hair-wave-gold', crown: 'crown-tiara-silver',
+        shoes: 'shoes-glass', necklace: 'neck-pearl', wings: 'wing-butterfly-blue',
+        wand: 'wand-star', earrings: 'ear-drop-blue',
+      }
+      const album = { owned: {}, counters: {}, seen: {} }
+      STICKERS.slice(0, 9).forEach((s) => { album.owned[s.id] = true })
+
+      panel('허브', (ctx) => drawHub(ctx, {
+        outfit, resolve,
+        labels: { closet: '입은 옷 8칸 · 룩북 2장', runway: '⭐⭐⭐ 6 / 20', crown: '내 왕관 2 / 3', room: '놓은 가구 5 / 18', album: '9 / 24 장' },
+        stickers: 9, muted: false,
+      }))
+
+      panel('옷장', (ctx) => drawCloset(ctx, {
+        outfit, resolve, backdrop: 'ballroom', cat: 'dress',
+        shown: itemsOf('dress').slice(0, 8), page: 0, pages: 2, muted: false,
+        toast: '별빛 파랑 드레스 예쁘다!', toastEmoji: '👗', expr: 'happy',
+      }))
+
+      panel('옷장(악세사리 탭)', (ctx) => drawCloset(ctx, {
+        outfit, resolve, backdrop: 'garden', cat: 'wand',
+        shown: itemsOf('wand'), page: 0, pages: 1, muted: true,
+        toast: null, toastEmoji: '👑', expr: 'smile',
+      }))
+
+      panel('배경 고르기', (ctx) => drawBackdropPicker(ctx, 'sea', false))
+
+      panel('룩북', (ctx) => drawLookbook(ctx, [
+        { outfit, backdrop: 'ballroom' },
+        { outfit: { dress: 'dress-rose-gold', hair: 'hair-braid-brown', crown: 'crown-gold-royal' }, backdrop: 'garden' },
+        { outfit: { dress: 'dress-snow-ice', hair: 'hair-braid-silver', cape: 'cape-snow-blue' }, backdrop: 'snow' },
+        { outfit: { dress: 'dress-sea-teal', hair: 'hair-long-red' }, backdrop: 'sea' },
+      ], resolve, false))
+
+      panel('룩북(빈)', (ctx) => drawLookbook(ctx, [], resolve, false))
+
+      panel('패션쇼 목록', (ctx) => drawMissionList(ctx, { m01: 3, m02: 3, m03: 2, m04: 3, m05: 1 }, false))
+
+      const mission = MISSIONS[13]
+      panel('패션쇼 꾸미기', (ctx) => drawDressScreen(ctx, {
+        mission, met: metFlags(mission, outfit, resolve),
+        outfit, resolve, backdrop: 'snow', cat: 'cape',
+        shown: itemsOf('cape'), page: 0, pages: 1, muted: false, hint: 1,
+      }))
+
+      panel('패션쇼 결과', (ctx) => drawResult(ctx, {
+        mission: MISSIONS[0], stars: 3, best: 3, msg: '완벽해! 최고의 공주야', emoji: '🏆',
+        outfit, resolve, backdrop: 'ballroom', muted: false, hasNext: true,
+      }))
+
+      const design = emptyDesign('gold')
+      design.gems = ['ruby', 'pearl', 'sapphire', 'star', null, 'heart', null, 'topaz']
+      panel('왕관 공방', (ctx) => drawCrownScreen(ctx, {
+        design, outfit, resolve, gem: 2, eraser: false,
+        saved: [emptyDesign('silver'), design], muted: false,
+        message: '사파이어 를 골랐어요',
+      }))
+
+      let layout = []
+      layout = place(layout, 'bed', 80, 350)
+      layout = place(layout, 'vanity', 220, 320)
+      layout = place(layout, 'rug', 150, 380)
+      layout = place(layout, 'mirror', 300, 160)
+      layout = place(layout, 'chandelier', 180, 90)
+      layout = place(layout, 'teddy', 40, 300)
+      layout = place(layout, 'cake', 260, 370)
+      layout = place(layout, 'balloon', 320, 300)
+      panel('방 꾸미기', (ctx) => drawRoomScreen(ctx, {
+        layout, picked: 'plant', selected: 1, page: 0, outfit, resolve, muted: false,
+        message: '화분 — 방을 두드려 놓아요',
+      }))
+
+      panel('스티커 앨범', (ctx) => drawAlbum(ctx, album, false, null))
+      panel('스티커 상세', (ctx) => drawAlbum(ctx, album, false, 14))
+      panel('스티커 알림', (ctx) => {
+        drawHub(ctx, { outfit, resolve, labels: {}, stickers: 10, muted: false })
+        drawStickerToast(ctx, 'crown-first', 1.2)
+      })
+
+      document.title = 'ready'
+    </script>
+  </body>
+</html>

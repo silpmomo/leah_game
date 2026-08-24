@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>옷장 미리보기</title>
+    <style>
+      body { margin: 0; background: #fff5fb; font: 11px sans-serif; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="1560" height="2660"></canvas>
+    <script type="module">
+      import { paintInBox } from '/src/render/paint.ts'
+      import { DOLL_W, DOLL_H } from '/src/doll/body.ts'
+      import { composeDoll } from '/src/doll/outfit.ts'
+      import { ITEMS, itemsOf } from '/src/doll/wardrobe.ts'
+      import { CATEGORIES } from '/src/doll/kinds.ts'
+
+      const ctx = document.getElementById('c').getContext('2d')
+      ctx.fillStyle = '#fff5fb'
+      ctx.fillRect(0, 0, 1560, 2660)
+
+      const CW = 195, CH = 330
+      function cell(i, outfit, label) {
+        const x = 10 + (i % 8) * CW
+        const y = 10 + Math.floor(i / 8) * CH
+        ctx.strokeStyle = '#f0d8ea'
+        ctx.strokeRect(x, y, CW - 6, CH - 6)
+        paintInBox(ctx, composeDoll(outfit), { x, y: y + 16, w: CW - 6, h: CH - 28 }, { w: DOLL_W, h: DOLL_H })
+        ctx.fillStyle = '#7a4a6a'
+        ctx.fillText(label, x + 6, y + 12)
+      }
+
+      let i = 0
+      // 드레스 전부 (기본 머리)
+      for (const it of itemsOf('dress')) cell(i++, { dress: it.id }, it.name)
+      // 머리 전부
+      for (const it of itemsOf('hair')) cell(i++, { hair: it.id }, it.name)
+      // 나머지 카테고리는 대표 코디 위에
+      for (const cat of ['crown', 'shoes', 'necklace', 'gloves', 'cape', 'wings', 'earrings', 'wand']) {
+        for (const it of itemsOf(cat)) {
+          cell(i++, { dress: 'dress-ball-lavender', hair: 'hair-long-brown', [cat]: it.id }, it.name)
+        }
+      }
+      // 풀세트
+      cell(i++, {
+        dress: 'dress-star-blue', hair: 'hair-wave-gold', crown: 'crown-tiara-silver',
+        shoes: 'shoes-glass', necklace: 'neck-pearl', gloves: 'glove-long-white',
+        cape: 'cape-snow-blue', wings: 'wing-butterfly-blue', earrings: 'ear-drop-blue',
+        wand: 'wand-star',
+      }, '풀세트')
+
+      document.title = 'ready ' + ITEMS.length
+    </script>
+  </body>
+</html>

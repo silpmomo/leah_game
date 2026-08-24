@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>미리보기</title>
+    <style>
+      body { margin: 0; background: #fff5fb; font: 12px sans-serif; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="1200" height="900"></canvas>
+    <script type="module">
+      import { paintShapes, paintInBox } from '/src/render/paint.ts'
+      import {
+        DOLL_W, DOLL_H, bodyShapes, faceShapes, baseHairBack, baseHairFront,
+        baseOutfitShapes, baseShoeShapes, baseSleeveShapes, armShapes,
+      } from '/src/doll/body.ts'
+
+      const ctx = document.getElementById('c').getContext('2d')
+      ctx.fillStyle = '#fff5fb'
+      ctx.fillRect(0, 0, 1200, 900)
+
+      function doll(expr) {
+        return [
+          ...baseHairBack(),
+          ...bodyShapes(),
+          ...faceShapes(expr),
+          ...baseOutfitShapes(),
+          ...baseShoeShapes(),
+          ...armShapes(),
+          ...baseSleeveShapes(),
+          ...baseHairFront(),
+        ]
+      }
+
+      const exprs = ['smile', 'happy', 'wink', 'surprise', 'sparkle']
+      // 큰 그림 하나
+      paintInBox(ctx, doll('smile'), { x: 20, y: 20, w: 500, h: 850 }, { w: DOLL_W, h: DOLL_H })
+
+      // 표정 5종
+      exprs.forEach((e, i) => {
+        const x = 540 + (i % 3) * 220
+        const y = 20 + Math.floor(i / 3) * 430
+        ctx.strokeStyle = '#e7c6dd'
+        ctx.strokeRect(x, y, 210, 420)
+        paintInBox(ctx, doll(e), { x, y, w: 210, h: 420 }, { w: DOLL_W, h: DOLL_H })
+        ctx.fillStyle = '#7a4a6a'
+        ctx.fillText(e, x + 8, y + 14)
+      })
+
+      // 얼굴 확대
+      ctx.save()
+      ctx.translate(1000, 470)
+      ctx.scale(2.2, 2.2)
+      ctx.translate(-60, -20)
+      paintShapes(ctx, doll('smile'))
+      ctx.restore()
+
+      document.title = 'ready'
+    </script>
+  </body>
+</html>
