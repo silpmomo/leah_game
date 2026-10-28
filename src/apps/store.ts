@@ -17,6 +17,7 @@ import {
   type CrownDesign,
 } from '../doll/custom'
 import type { BackdropId } from '../doll/backdrop'
+import { sanitizeTints, type Tints } from '../doll/tint'
 import {
   LOOK_MAX,
   sanitizeBackdrop,
@@ -41,6 +42,7 @@ const K = {
   outfit: storageKey('closet', 'outfit'),
   backdrop: storageKey('closet', 'backdrop'),
   looks: storageKey('closet', 'looks'),
+  tints: storageKey('closet', 'tints'),
   runway: storageKey('runway', 'progress'),
   crowns: storageKey('crown', 'designs'),
   room: storageKey('room', 'layout'),
@@ -53,6 +55,7 @@ export function createStore() {
   let outfit: Outfit = loadJson(K.outfit, sanitizeOutfit)
   let backdrop: BackdropId = loadJson(K.backdrop, sanitizeBackdrop)
   let looks: Look[] = loadJson(K.looks, sanitizeLooks)
+  let tints: Tints = loadJson(K.tints, sanitizeTints)
   let runway: Progress = loadJson(K.runway, sanitizeProgress)
   let crowns: CrownDesign[] = loadJson(K.crowns, sanitizeDesigns)
   let room: Placed[] = loadJson(K.room, sanitizeLayout)
@@ -127,6 +130,13 @@ export function createStore() {
       saveJson(K.backdrop, backdrop)
       see('backdrop', id)
       check()
+    },
+
+    /** 색 견본 — 옷장에서만 쓴다. 패션쇼는 원래 색으로 그린다 */
+    tints: (): Tints => tints,
+    setTints(next: Tints): void {
+      tints = sanitizeTints(next)
+      saveJson(K.tints, tints)
     },
 
     looks: (): readonly Look[] => looks,

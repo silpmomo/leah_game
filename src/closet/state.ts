@@ -7,12 +7,15 @@ import type { BackdropId } from '../doll/backdrop'
 import { BACKDROPS } from '../doll/backdrop'
 import type { Category } from '../doll/kinds'
 import type { Outfit } from '../doll/outfit'
+import { sanitizeTints, type Tints } from '../doll/tint'
 import { itemById } from '../doll/wardrobe'
 
 /** 룩북 한 칸 */
 export type Look = {
   outfit: Outfit
   backdrop: BackdropId
+  /** 색 견본. 옛 저장값엔 없을 수 있다 */
+  tints?: Tints
 }
 
 /** 룩북 최대 칸 수. 3 x 3 격자에 딱 맞춘다 */
@@ -34,14 +37,19 @@ export function sanitizeOutfit(v: unknown): Outfit {
 
 export function sanitizeBackdrop(v: unknown): BackdropId {
   const id = typeof v === 'string' ? v : ''
-  return (BACKDROPS.find((b) => b.id === id)?.id ?? 'ballroom') as BackdropId
+  return (BACKDROPS.find((b) => b.id === id)?.id ?? BACKDROPS[0]!.id) as BackdropId
 }
 
 export function sanitizeLooks(v: unknown): Look[] {
   if (!Array.isArray(v)) return []
   return v.slice(0, LOOK_MAX).map((raw) => {
     const o = (raw ?? {}) as Record<string, unknown>
-    return { outfit: sanitizeOutfit(o.outfit), backdrop: sanitizeBackdrop(o.backdrop) }
+    const tints = sanitizeTints(o.tints)
+    return {
+      outfit: sanitizeOutfit(o.outfit),
+      backdrop: sanitizeBackdrop(o.backdrop),
+      ...(Object.keys(tints).length > 0 ? { tints } : {}),
+    }
   })
 }
 

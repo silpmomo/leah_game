@@ -18,6 +18,7 @@ import {
   type Expression,
 } from './body'
 import { CATEGORIES, type Category, type ColorTag, type Item, type ThemeTag } from './kinds'
+import { tintFor, type Tints } from './tint'
 import { itemById, itemsOf } from './wardrobe'
 
 export type Outfit = Partial<Record<Category, string>>
@@ -104,6 +105,8 @@ export type ComposeOpts = {
   resolve?: Resolve
   /** 얼굴을 그릴지. 룩북 미니 인형에서도 얼굴은 그린다 */
   face?: boolean
+  /** 색 견본. 없으면 원래 색 (패션쇼는 일부러 넘기지 않는다) */
+  tints?: Tints
 }
 
 /**
@@ -131,23 +134,28 @@ export function composeDoll(outfit: Outfit, opts: ComposeOpts = {}): Shape[] {
    * 드레스는 그걸 갈아입는 것이다. 악세사리는 전부 그 위에 얹힌다.
    */
   const baseWear = dress ? [] : baseOutfitShapes()
-  const sleeves = dress ? (dress.sleeves ?? []) : baseSleeveShapes()
+  const t = opts.tints
+  // 색 견본은 아이템 조각에만 입힌다. 몸·얼굴·기본 옷은 그대로다
+  const dressFront = tintFor('dress', t, dress?.front ?? [])
+  const sleeves = dress ? tintFor('dress', t, dress.sleeves ?? []) : baseSleeveShapes()
+  const hairBack = hair ? tintFor('hair', t, hair.back ?? []) : baseHairBack()
+  const hairFront = hair ? tintFor('hair', t, hair.front) : baseHairFront()
 
   return [
     ...(wings?.back ?? []), // 10 날개
-    ...(cape?.back ?? []), // 20 망토 천
-    ...(hair ? (hair.back ?? []) : baseHairBack()), // 25 뒷머리
+    ...tintFor('cape', t, cape?.back ?? []), // 20 망토 천
+    ...hairBack, // 25 뒷머리
     ...bodyShapes(), // 30 몸
     ...(opts.face === false ? [] : faceShapes(opts.expr ?? 'smile')), // 34 얼굴
     ...baseWear, // 38 기본 옷 (드레스가 없을 때)
-    ...(dress?.front ?? []), // 42 드레스
+    ...dressFront, // 42 드레스
     ...baseShoeShapes(), // 46 기본 신발
-    ...(shoes?.front ?? []),
+    ...tintFor('shoes', t, shoes?.front ?? []),
     ...armShapes(), // 50 팔
     ...sleeves, // 54 소매
     ...(gloves?.sleeves ?? []), // 58 장갑
-    ...(hair?.front ?? baseHairFront()), // 62 앞머리
-    ...(cape?.front ?? []), // 64 망토 깃
+    ...hairFront, // 62 앞머리
+    ...tintFor('cape', t, cape?.front ?? []), // 64 망토 깃
     ...(get('earrings')?.front ?? []), // 66 귀걸이
     ...(get('necklace')?.front ?? []), // 68 목걸이
     ...(get('crown')?.front ?? []), // 72 왕관
