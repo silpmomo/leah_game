@@ -8,7 +8,7 @@
 
 | id | 이름 | 무엇을 하나 |
 |---|---|---|
-| `closet` | 공주 옷장 | 드레스·악세사리 58종으로 자유롭게 꾸미기, 배경 6곳, 룩북 9장 |
+| `closet` | 공주 옷장 | 드레스·악세사리 58종으로 자유롭게 꾸미기, 색 견본으로 색 바꾸기, 배경 7곳, 룩북 9장 |
 | `runway` | 패션쇼 | 부탁(미션) 20개를 듣고 코디 맞추기, 별 1~3개 |
 | `crown` | 보석 왕관 공방 | 보석 8종을 왕관에 붙여 내 왕관 만들기 → 옷장에 추가 |
 | `room` | 공주 방 꾸미기 | 가구 16종을 놓고 옮기고 치우기 |
@@ -35,6 +35,7 @@ npm run build    # tsc --noEmit + vite build
 
 ## 문서
 
+- [docs/DESIGN.md](docs/DESIGN.md) — 화면 디자인 사양 (Hollywood Merge 의 "보이는 것" 만 옮긴 기록)
 - [docs/DOLL.md](docs/DOLL.md) — 인형 좌표계와 옷 추가하는 법
 - [docs/GAMES.md](docs/GAMES.md) — 놀이별 규칙과 참고한 요소
 - [docs/ADD-GAME.md](docs/ADD-GAME.md) — 여섯 번째 놀이를 붙이는 절차

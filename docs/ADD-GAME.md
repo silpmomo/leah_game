@@ -9,7 +9,7 @@
 hub (놀이 고르기)
  └─ closet | runway | crown | room | album
       각 놀이가 화면을 통째로 가지고, 안에서 하위 화면을 관리한다
-      좌상단 "← 게임" 이 한 단계씩 위로, Esc 도 같다
+      좌상단 분홍 뒤로 버튼이 한 단계씩 위로, Esc 도 같다
 ```
 
 ## 1. 레지스트리에 항목 추가
@@ -26,9 +26,9 @@ hub (놀이 고르기)
 }
 ```
 
-카드는 세로로 쌓이고 자리는 자동으로 잡힌다. `tests/layout.test.ts` 가
-카드가 화면 안에 들어가는지, 스티커 줄과 겹치지 않는지 검사한다.
-여섯 개를 넘기면 `ui/hub.ts` 의 `CARD_H` 를 줄이거나 스크롤을 넣어야 한다.
+카드는 오른쪽에 세로로 쌓이고 자리는 자동으로 잡힌다. `tests/layout.test.ts` 가
+카드가 화면 안에 들어가는지, 인형 자리·스티커 줄과 겹치지 않는지 검사한다.
+여섯 개째부터는 `ui/hub.ts` 의 `CARD_H` 를 줄여야 한다.
 
 ## 2. GameApp 만들기
 
@@ -84,7 +84,7 @@ const K = { puzzle: storageKey('puzzle', 'progress') }   // leah_game.puzzle.pro
 | `engine/rng.ts` | 결정적 난수 |
 | `engine/hangul.ts` | 조사 붙이기 (`커튼을`, `침대를`) |
 | `render/paint.ts` | Shape → 캔버스 |
-| `render/ui.ts` | 버튼·패널·상단바·별점 |
+| `render/ui.ts` | 버튼·패널·상단 HUD·별점. 색은 전부 `UI` 에 있다 — 화면이 색을 직접 적지 않는다 |
 | `doll/` | 리아 인형과 옷 (`composeDoll`) |
 | `apps/store.ts` | 저장값 전부 |
 
