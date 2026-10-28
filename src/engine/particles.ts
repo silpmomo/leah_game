@@ -23,6 +23,8 @@ export type Particle = {
   color: string
   /** 중력을 받는가 */
   heavy: boolean
+  /** 속도가 줄지 않고 좌우로 살랑이며 떨어진다 (꽃잎) */
+  drift?: boolean
 }
 
 const CONFETTI_COLORS = [
@@ -92,6 +94,36 @@ export function rain(rng: Rng, w: number, count: number): Particle[] {
   return out
 }
 
+const PETAL_COLORS = ['#ffb7cf', '#ffd0e0', '#ff9ec4', '#fde2ea', '#f9b4c8']
+
+/**
+ * 위에서 살랑살랑 떨어지는 꽃잎 — 옷장 무대의 상시 연출.
+ *
+ * 수명이 길고 속도가 줄지 않는다. `x0~x1` 사이에서 태어난다.
+ */
+export function petals(rng: Rng, x0: number, x1: number, count: number): Particle[] {
+  const out: Particle[] = []
+  for (let i = 0; i < count; i++) {
+    const life = 11 + rng.next() * 4
+    out.push({
+      x: x0 + rng.next() * (x1 - x0),
+      y: -8 - rng.next() * 30,
+      vx: (rng.next() - 0.5) * 10,
+      vy: 26 + rng.next() * 22,
+      life,
+      total: life,
+      size: 4.5 + rng.next() * 3.5,
+      rot: rng.next() * Math.PI,
+      spin: (rng.next() - 0.5) * 2.4,
+      kind: 'petal',
+      color: rng.pick(PETAL_COLORS),
+      heavy: false,
+      drift: true,
+    })
+  }
+  return out
+}
+
 /** 인형 주변에서 위로 떠오르는 반짝이 */
 export function sparkleAt(rng: Rng, x: number, y: number, count: number): Particle[] {
   const out: Particle[] = []
@@ -126,6 +158,16 @@ export function stepParticles(ps: readonly Particle[], dt: number): Particle[] {
   for (const p of ps) {
     const life = p.life - dt
     if (life <= 0) continue
+    if (p.drift) {
+      out.push({
+        ...p,
+        life,
+        x: p.x + p.vx * dt + Math.sin(life * 1.6) * 14 * dt,
+        y: p.y + p.vy * dt,
+        rot: p.rot + p.spin * dt,
+      })
+      continue
+    }
     out.push({
       ...p,
       life,
@@ -141,5 +183,7 @@ export function stepParticles(ps: readonly Particle[], dt: number): Particle[] {
 
 /** 0(사라짐) ~ 1(갓 태어남) */
 export function fadeOf(p: Particle): number {
+  // 꽃잎은 끝에서만 사라진다. 수명이 길어 처음부터 옅어지면 늘 반투명이다
+  if (p.drift) return Math.max(0, Math.min(1, p.life / 1.5))
   return Math.max(0, Math.min(1, p.life / p.total))
 }

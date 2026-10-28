@@ -104,11 +104,21 @@ ws.addEventListener('message', (e) => {
 
 // 지난 시나리오의 저장값이 남아 있으면 같은 좌표를 눌러도 다른 곳이 열린다.
 // 늘 새 아이가 처음 켠 상태에서 시작한다.
+/** main.ts 가 다 실려 입력을 듣기 시작할 때까지 기다린다 */
+async function waitReady() {
+  for (let i = 0; i < 100; i++) {
+    if (await evaluate("document.documentElement.dataset.ready === '1'")) return
+    await sleep(100)
+  }
+  throw new Error('앱이 뜨지 않았다')
+}
+
 await send('Page.navigate', { url: BASE })
-await sleep(1200)
+await waitReady()
 await evaluate('localStorage.clear()')
 await send('Page.reload', { ignoreCache: true })
-await sleep(1800)
+await waitReady()
+await sleep(400)
 
 /** 논리 좌표(360x640) → 화면 좌표 */
 async function canvasBox() {
@@ -146,98 +156,117 @@ async function capture(name) {
   const file = join(OUT, `${String(++shot).padStart(2, '0')}-${name}.png`)
   writeFileSync(file, Buffer.from(r.data, 'base64'))
   console.log('찍음', file)
+  // 찍은 직후의 탭이 간혹 빠진다 — 한 박자 쉰다
+  await sleep(200)
 }
 
 // ── 시나리오 ───────────────────────────────────────────────────
+//
+// 좌표는 src/ui/*Screen.ts 의 사각형 가운데다 (docs/DESIGN.md 배치 표).
+//   허브 카드 i      → (275, 136 + 88 i)
+//   옷장 옷 칸 i     → (262, 135 + 66 i)      분류 레일 i → (328, 113 + 46 i)
+//   도구 i           → (30 + 54 i, 606)       색 견본 i  → (208, 153 + 28 i)
+//   뒤로             → (37, 59)
+
+const BACK = [37, 59]
+const card = (i) => [275, 136 + 88 * i]
+const cell = (i) => [262, 135 + 66 * i]
+const rail = (i) => [328, 113 + 46 * i]
+const tool = (i) => [30 + 54 * i, 606]
+const swatch = (i) => [208, 153 + 28 * i]
 
 await capture('허브')
 
 // 공주 옷장
-await tap(180, 168) // 첫 카드
+await tap(...card(0))
 await sleep(400)
 await capture('옷장')
-await tap(63, 459) // 첫 드레스
-await tap(207, 459) // 다른 드레스
-await tap(105, 375) // 머리 탭
-await tap(63, 459)
-await tap(177, 375) // 왕관 탭
-await tap(135, 459)
+await tap(...cell(0)) // 첫 드레스
+await tap(...cell(1)) // 다른 드레스
+await tap(...rail(1)) // 머리
+await tap(...cell(0))
+await tap(...rail(2)) // 왕관
+await tap(...cell(1))
 await sleep(300)
 await capture('옷장-코디')
-await tap(178, 581) // 랜덤
+await tap(...rail(0)) // 드레스로 돌아와 색 견본
+await tap(...swatch(3))
+await sleep(300)
+await capture('옷장-색견본')
+await tap(...tool(0)) // 랜덤
 await sleep(400)
 await capture('옷장-랜덤')
-await tap(315, 581) // 배경
+await tap(...tool(2)) // 배경
 await sleep(300)
 await capture('배경')
-await tap(100, 186) // 성 무도회장 옆 정원
+await tap(98, 258) // 꽃 정원 (둘째 줄 왼쪽)
 await sleep(300)
-await tap(246, 581) // 사진
+await tap(...tool(3)) // 사진
 await sleep(300)
 await capture('사진')
-await tap(315, 581 + 0) // 룩북 자리(마지막 도구)
+await tap(...tool(4)) // 룩북
 await sleep(300)
 await capture('룩북')
-await tap(39, 23) // 뒤로
+await tap(...BACK)
 await sleep(200)
-await tap(39, 23) // 허브로
+await tap(...BACK) // 허브로
 await sleep(300)
 await capture('허브-갱신')
 
 // 패션쇼
-await tap(180, 250)
+await tap(...card(1))
 await sleep(400)
 await capture('패션쇼-목록')
 await tap(54, 132) // 1번 미션
 await sleep(300)
 await capture('패션쇼-꾸미기')
-await tap(63, 459)
+await tap(...cell(0))
 await sleep(200)
-await tap(300, 581) // 완성
+await tap(289, 606) // 완성 (초록 버튼)
 await sleep(600)
 await capture('패션쇼-결과')
 await tap(180, 580) // 목록
 await sleep(300)
-await tap(39, 23)
+await tap(...BACK)
 await sleep(300)
 
-// 왕관 공방
-await tap(180, 330)
+// 왕관 공방 — 보석 칸은 cropFit(STAGE, HEAD_VIEW) 로 환산한 머리 호 위치
+await tap(...card(2))
 await sleep(400)
 await capture('왕관-공방')
 await tap(60, 328) // 루비
-await tap(120, 150)
-await tap(150, 130)
-await tap(180, 125)
-await tap(210, 130)
+await tap(147, 147)
+await tap(160, 139)
+await tap(173, 136)
+await tap(200, 139)
 await sleep(300)
 await capture('왕관-보석')
 await tap(285, 490) // 옷장에
 await sleep(600)
 await capture('왕관-저장')
-await tap(39, 23)
+await tap(...BACK)
 await sleep(300)
 
-// 방 꾸미기
-await tap(180, 410)
+// 방 꾸미기 — 방은 y 80~472, 창고는 (66 + 76 c, 505 / 557)
+await tap(...card(3))
 await sleep(400)
 await capture('방-처음')
-await tap(66, 471) // 침대
-await tap(110, 380)
-await tap(228, 471) // 큰 거울
-await tap(120, 180)
-await tap(304, 471) // 샹들리에
-await tap(200, 120)
-await tap(180, 527) // 다음 줄 가구
-await tap(66, 527)
-await tap(250, 400)
+await tap(66, 505) // 침대
+await tap(110, 400)
+await tap(218, 505) // 큰 거울
+await tap(120, 200)
+await tap(294, 505) // 샹들리에
+await tap(200, 150)
+await tap(180, 557) // 다음 줄 가구
+await tap(66, 557)
+await tap(250, 420)
 await sleep(300)
 await capture('방-꾸민')
-await tap(39, 23)
+await tap(...BACK)
 await sleep(300)
 
 // 스티커 앨범
-await tap(180, 490)
+await tap(...card(4))
 await sleep(400)
 await capture('앨범')
 await tap(55, 131)

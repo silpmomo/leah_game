@@ -5,10 +5,10 @@
  * 받지?" 하고 다시 놀러 간다. 힌트는 눌러야 나온다.
  */
 import { VIEW_H, VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
-import { circlePath, rectPath, linear } from '../engine/shapes'
+import { circlePath } from '../engine/shapes'
 import { STICKERS, STICKER_TOTAL, type Album } from '../stickers/album'
 import { paintShape } from '../render/paint'
-import { UI, drawBar, drawPanel, drawTopBar, fillRRect, strokeRRect, text } from '../render/ui'
+import { UI, drawPanel, drawSky, drawTopBar, fillRRect, strokeRRect, text } from '../render/ui'
 
 const CELL_W = 76
 const CELL_H = 74
@@ -29,31 +29,29 @@ export function drawAlbum(
   album: Album,
   muted: boolean,
   detail: number | null,
+  stickers = 0,
 ): void {
-  paintShape(ctx, {
-    d: rectPath(0, 0, VIEW_W, VIEW_H),
-    fill: linear(0, 0, 0, VIEW_H, [
-      [0, '#2f1a55'],
-      [1, '#6a4a9e'],
-    ]),
-  })
-  drawTopBar(ctx, '스티커 앨범', muted)
-
+  drawSky(ctx, 'lavender')
   const got = Object.keys(album.owned).length
-  text(ctx, `모은 스티커 ${got} / ${STICKER_TOTAL}`, VIEW_W / 2, 66, { size: 12, bold: true })
-  drawBar(ctx, { x: 40, y: 78, w: VIEW_W - 80, h: 8 }, got / STICKER_TOTAL, UI.gold)
+  drawTopBar(ctx, '스티커 앨범', muted, {
+    tag: `모은 스티커 ${got} / ${STICKER_TOTAL}`,
+    tagIcon: '🌈',
+    stickers,
+    total: STICKER_TOTAL,
+  })
 
   for (let i = 0; i < STICKERS.length; i++) {
     const s = STICKERS[i]!
     const r = stickerRect(i)
     const own = album.owned[s.id] === true
 
-    fillRRect(ctx, r, 12, own ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.18)')
-    strokeRRect(ctx, r, 12, own ? s.color : 'rgba(255,255,255,.12)', own ? 2 : 1)
+    fillRRect(ctx, { ...r, y: r.y + 2 }, 12, UI.shadow)
+    fillRRect(ctx, r, 12, own ? UI.panel : 'rgba(255,255,255,.4)')
+    strokeRRect(ctx, r, 12, own ? s.color : UI.panelLine, own ? 2.2 : 1.2)
 
     paintShape(ctx, {
       d: circlePath(r.x + r.w / 2, r.y + 28, 20),
-      fill: own ? s.color : 'rgba(255,255,255,.07)',
+      fill: own ? s.color : 'rgba(74,51,87,.1)',
     })
     ctx.save()
     if (!own) ctx.globalAlpha = 0.28
@@ -73,9 +71,9 @@ export function drawAlbum(
     if (!s) return
     const own = album.owned[s.id] === true
     const panel: Rect = { x: 26, y: 250, w: VIEW_W - 52, h: 140 }
-    fillRRect(ctx, { x: 0, y: 0, w: VIEW_W, h: VIEW_H }, 0, 'rgba(12,4,20,.55)')
+    fillRRect(ctx, { x: 0, y: 0, w: VIEW_W, h: VIEW_H }, 0, 'rgba(40,20,60,.45)')
     drawPanel(ctx, panel, 16)
-    paintShape(ctx, { d: circlePath(VIEW_W / 2, panel.y + 40, 26), fill: own ? s.color : 'rgba(255,255,255,.1)' })
+    paintShape(ctx, { d: circlePath(VIEW_W / 2, panel.y + 40, 26), fill: own ? s.color : 'rgba(74,51,87,.12)' })
     text(ctx, s.emoji, VIEW_W / 2, panel.y + 41, { size: 26 })
     text(ctx, own ? s.name : '아직 못 받은 스티커', VIEW_W / 2, panel.y + 84, {
       size: 14,

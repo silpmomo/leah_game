@@ -260,6 +260,7 @@ const loop = createLoop({
         labels: hubLabels(),
         stickers: store.stickerCount(),
         muted: audio.muted(),
+        tints: store.tints(),
       })
     } else {
       app()?.render(ctx, tick)
@@ -272,3 +273,6 @@ const loop = createLoop({
 resize()
 store.recheck()
 loop.start()
+// 촬영 도구(tools/drive.mjs)가 "앱이 떴다" 를 알 수 있게 표시한다.
+// 모듈이 다 실릴 때까지 캔버스는 있어도 듣는 사람이 없다.
+document.documentElement.dataset.ready = '1'

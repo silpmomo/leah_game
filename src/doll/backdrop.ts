@@ -1,8 +1,12 @@
 /**
- * 배경 6종.
+ * 배경 7종.
  *
  * 무대 상자(w x h)를 받아 그릴 조각을 돌려준다. 상자 크기가 화면마다
  * 달라지므로 비율로 계산한다. 순수 함수라 테스트에서 조각 수를 셀 수 있다.
+ *
+ * 첫 번째 `party`(옥상 파티)가 새 아이의 기본 배경이다 — 참고작
+ * (docs/DESIGN.md)의 노을·도시·풍선·마루 장면을 옮겼다. 나머지 여섯은
+ * 아이디가 저장값에 남아 있으므로 그대로 둔다.
  */
 import {
   circlePath,
@@ -17,7 +21,7 @@ import {
   type Shape,
 } from '../engine/shapes'
 
-export type BackdropId = 'ballroom' | 'garden' | 'sea' | 'snow' | 'night' | 'desert'
+export type BackdropId = 'party' | 'ballroom' | 'garden' | 'sea' | 'snow' | 'night' | 'desert'
 
 export type Backdrop = {
   id: BackdropId
@@ -35,7 +39,134 @@ const DOTS: readonly (readonly [number, number])[] = [
   [0.92, 0.32], [0.05, 0.4], [0.3, 0.44], [0.56, 0.38], [0.8, 0.45],
 ]
 
+/**
+ * 헤링본 마루.
+ *
+ * 참고작의 바닥이다. 나무 조각을 하나씩 그리면 수백 조각이 되므로
+ * 지그재그 선 몇 줄로 결만 낸다. 인형 발밑이라 어두운 그림자와 잘 어울린다.
+ */
+function herringbone(w: number, y0: number, y1: number, light: string, dark: string): Shape[] {
+  const out: Shape[] = [
+    {
+      d: rectPath(0, y0, w, y1 - y0),
+      fill: linear(0, y0, 0, y1, [
+        [0, light],
+        [1, dark],
+      ]),
+    },
+  ]
+  const step = Math.max(18, w * 0.09)
+  for (let y = y0 + step * 0.5; y < y1 + step; y += step) {
+    let d = `M${-step},${y}`
+    for (let x = -step; x < w + step; x += step) {
+      d += `L${x + step / 2},${y - step / 2}L${x + step},${y}`
+    }
+    out.push({ d, stroke: 'rgba(255,255,255,.22)', lw: 1.2, join: 'round' })
+    out.push({ d, stroke: 'rgba(90,50,30,.14)', lw: 1.2, join: 'round', alpha: 0.6 })
+  }
+  return out
+}
+
 export const BACKDROPS: readonly Backdrop[] = [
+  {
+    id: 'party',
+    name: '옥상 파티',
+    icon: '🎈',
+    swatch: '#f3a5b8',
+    build: (w, h) => {
+      const floorY = h * 0.64
+      const out: Shape[] = [
+        // 노을 하늘
+        {
+          d: rectPath(0, 0, w, floorY),
+          fill: linear(0, 0, 0, floorY, [
+            [0, '#f6c7d6'],
+            [0.5, '#f7c2b4'],
+            [1, '#c9a3d6'],
+          ]),
+        },
+        // 해 — 지평선에 걸친 큰 원
+        { d: circlePath(w * 0.5, floorY - h * 0.1, h * 0.09), fill: 'rgba(255,236,200,.7)' },
+      ]
+      // 도시 실루엣 — 두 줄 (먼 줄은 옅고, 가까운 줄은 진하다)
+      const far = [0.1, 0.22, 0.34, 0.47, 0.6, 0.72, 0.86, 0.97]
+      far.forEach((rx, i) => {
+        const bw = w * 0.1
+        const bh = h * (0.08 + ((i * 7) % 5) * 0.025)
+        out.push({ d: rectPath(rx * w - bw / 2, floorY - h * 0.07 - bh, bw, bh + h * 0.07), fill: 'rgba(130,100,160,.35)' })
+      })
+      const near = [0.04, 0.18, 0.3, 0.44, 0.58, 0.7, 0.84, 0.94]
+      near.forEach((rx, i) => {
+        const bw = w * 0.11
+        const bh = h * (0.1 + ((i * 5) % 4) * 0.03)
+        const bx = rx * w - bw / 2
+        out.push({ d: rectPath(bx, floorY - bh, bw, bh), fill: 'rgba(96,70,130,.55)' })
+        // 불 켜진 창
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 2; c++) {
+            if ((r + c + i) % 3 === 0) continue
+            out.push({
+              d: rectPath(bx + bw * (0.2 + c * 0.4), floorY - bh + h * 0.02 + r * h * 0.028, bw * 0.2, h * 0.016),
+              fill: 'rgba(255,230,160,.85)',
+            })
+          }
+        }
+      })
+      // 높은 탑 — 오른쪽
+      const tx = w * 0.84
+      const towerH = h * 0.4
+      out.push(
+        { d: rectPath(tx - w * 0.03, floorY - towerH, w * 0.06, towerH), fill: 'rgba(110,80,150,.6)' },
+        { d: polyPath([tx - w * 0.03, floorY - towerH, tx, floorY - towerH - h * 0.05, tx + w * 0.03, floorY - towerH]), fill: 'rgba(110,80,150,.6)' },
+        { d: `M${tx},${floorY - towerH - h * 0.05}L${tx},${floorY - towerH - h * 0.1}`, stroke: 'rgba(110,80,150,.7)', lw: 2 },
+      )
+      for (let r = 0; r < 7; r++) {
+        out.push({
+          d: rectPath(tx - w * 0.018, floorY - towerH + h * 0.03 + r * h * 0.045, w * 0.036, h * 0.018),
+          fill: 'rgba(255,230,160,.8)',
+        })
+      }
+      // 풍선 — 왼쪽 위
+      const balloons: [number, number, number, string][] = [
+        [0.06, 0.1, 1, '#ff8fb0'],
+        [0.13, 0.16, 0.85, '#ffd76a'],
+        [0.04, 0.24, 0.8, '#b48ae0'],
+        [0.14, 0.3, 0.7, '#ff7a8a'],
+      ]
+      for (const [rx, ry, s, c] of balloons) {
+        const bx = rx * w
+        const by = ry * h
+        const br = h * 0.045 * s
+        out.push(
+          { d: `M${bx},${by + br}Q${bx + 4},${by + br * 2.2} ${bx - 3},${by + br * 3}`, stroke: 'rgba(255,255,255,.6)', lw: 1 },
+          { d: ellipsePath(bx, by, br * 0.85, br), fill: c },
+          { d: ellipsePath(bx - br * 0.3, by - br * 0.35, br * 0.22, br * 0.3), fill: 'rgba(255,255,255,.55)' },
+        )
+      }
+      // 꼬마전구 줄
+      out.push({ d: `M0,${h * 0.06}Q${w * 0.5},${h * 0.14} ${w},${h * 0.05}`, stroke: 'rgba(255,255,255,.45)', lw: 1.2 })
+      for (let i = 1; i < 9; i++) {
+        const t = i / 9
+        const lx = t * w
+        const ly = (1 - t) * (1 - t) * h * 0.06 + 2 * (1 - t) * t * h * 0.14 + t * t * h * 0.05
+        out.push({ d: circlePath(lx, ly + 4, 3), fill: i % 2 ? '#fff0a8' : '#ffd0e0' })
+      }
+      // 테이블 — 오른쪽, 분홍 식탁보
+      const tx2 = w * 0.8
+      const ty = floorY + h * 0.05
+      out.push(
+        { d: ellipsePath(tx2, ty + h * 0.11, w * 0.14, h * 0.025), fill: 'rgba(90,50,30,.18)' },
+        { d: `M${tx2 - w * 0.13},${ty}Q${tx2 - w * 0.15},${ty + h * 0.1} ${tx2 - w * 0.12},${ty + h * 0.11}L${tx2 + w * 0.12},${ty + h * 0.11}Q${tx2 + w * 0.15},${ty + h * 0.1} ${tx2 + w * 0.13},${ty}Z`, fill: '#f2a6b6' },
+        { d: ellipsePath(tx2, ty, w * 0.13, h * 0.025), fill: '#ffd6df' },
+        { d: ellipsePath(tx2, ty - h * 0.01, w * 0.03, h * 0.008), fill: '#fff2c9' },
+        { d: `M${tx2},${ty - h * 0.01}L${tx2},${ty - h * 0.04}`, stroke: '#fff2c9', lw: 2 },
+        { d: circlePath(tx2, ty - h * 0.045, 3), fill: '#ffe37a' },
+      )
+      // 마루
+      out.push(...herringbone(w, floorY, h, '#edd2ad', '#c99a6c'))
+      return out
+    },
+  },
   {
     id: 'ballroom',
     name: '성 무도회장',

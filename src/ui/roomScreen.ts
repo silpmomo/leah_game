@@ -5,31 +5,41 @@
  * 놓인 가구는 끌어서 옮긴다. 리아는 방 오른쪽에 서서 구경한다 —
  * 지금 입은 옷 그대로다.
  */
-import { VIEW_H, VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
+import { VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
 import { linear, rectPath, rrectPath, starPath, ellipsePath } from '../engine/shapes'
 import { DOLL_H, DOLL_W } from '../doll/body'
 import { composeDoll, type Outfit, type Resolve } from '../doll/outfit'
 import { FURNITURE, furnitureOf } from '../room/items'
 import { FLOOR_Y, ROOM_H, ROOM_W, drawOrder, type Placed } from '../room/rules'
 import { paintCrop, paintInBox, paintShape } from '../render/paint'
-import { TOP_H, UI, drawButton, drawTopBar, fillRRect, strokeRRect, text } from '../render/ui'
+import {
+  TOP_H,
+  UI,
+  drawButton,
+  drawSky,
+  drawTopBar,
+  fillGlow,
+  fillRRect,
+  strokeRRect,
+  text,
+} from '../render/ui'
 
 export const ROOM_RECT: Rect = { x: 0, y: TOP_H, w: ROOM_W, h: ROOM_H }
 
 export const PER_PAGE = 8
-const CELL_W = 76
-const CELL_H = 50
-const PAL_X = 28
-const PAL_Y = 446
+const CELL_W = 72
+const CELL_H = 46
+const PAL_X = 30
+const PAL_Y = 482
 
 export function paletteRect(i: number): Rect {
-  return gridRect(i, 4, PAL_X, PAL_Y, CELL_W, CELL_H, 6, 6)
+  return gridRect(i, 4, PAL_X, PAL_Y, CELL_W, CELL_H, 4, 6)
 }
 
-export const PREV_RECT: Rect = { x: 3, y: 464, w: 22, h: 74 }
-export const NEXT_RECT: Rect = { x: VIEW_W - 25, y: 464, w: 22, h: 74 }
-export const TRASH_RECT: Rect = { x: 40, y: 560, w: 130, h: 46 }
-export const CLEAR_RECT: Rect = { x: 190, y: 560, w: 130, h: 46 }
+export const PREV_RECT: Rect = { x: 3, y: 500, w: 22, h: 74 }
+export const NEXT_RECT: Rect = { x: VIEW_W - 25, y: 500, w: 22, h: 74 }
+export const TRASH_RECT: Rect = { x: 40, y: 588, w: 130, h: 44 }
+export const CLEAR_RECT: Rect = { x: 190, y: 588, w: 130, h: 44 }
 
 export function pageCountOf(): number {
   return Math.ceil(FURNITURE.length / PER_PAGE)
@@ -112,10 +122,11 @@ export type RoomView = {
   resolve: Resolve
   muted: boolean
   message: string
+  stickers?: number
 }
 
 export function drawRoomScreen(ctx: CanvasRenderingContext2D, v: RoomView): void {
-  paintShape(ctx, { d: rectPath(0, 0, VIEW_W, VIEW_H), fill: '#2a1338' })
+  drawSky(ctx, 'pink')
 
   // 방
   ctx.save()
@@ -143,19 +154,24 @@ export function drawRoomScreen(ctx: CanvasRenderingContext2D, v: RoomView): void
   paintInBox(
     ctx,
     composeDoll(v.outfit, { resolve: v.resolve, expr: 'happy' }),
-    { x: ROOM_RECT.x + 258, y: ROOM_RECT.y + ROOM_H - 168, w: 96, h: 164 },
+    { x: ROOM_RECT.x + 262, y: ROOM_RECT.y + ROOM_H - 214, w: 92, h: 210 },
     { w: DOLL_W, h: DOLL_H },
   )
   ctx.restore()
 
-  strokeRRect(ctx, ROOM_RECT, 0, 'rgba(255,255,255,.18)', 1)
-  drawTopBar(ctx, '공주 방 꾸미기', v.muted)
+  strokeRRect(ctx, ROOM_RECT, 0, 'rgba(255,255,255,.6)', 2)
+  drawTopBar(ctx, '공주 방 꾸미기', v.muted, {
+    tag: `가구 ${v.layout.length}개`,
+    tagIcon: '🛋️',
+    stickers: v.stickers ?? 0,
+  })
 
   // 안내 한 줄
-  fillRRect(ctx, { x: 8, y: ROOM_RECT.y + ROOM_H - 26, w: VIEW_W - 16, h: 20 }, 8, 'rgba(24,8,36,.6)')
+  fillRRect(ctx, { x: 8, y: ROOM_RECT.y + ROOM_H - 26, w: VIEW_W - 16, h: 20 }, 10, UI.panel)
   text(ctx, v.message, VIEW_W / 2, ROOM_RECT.y + ROOM_H - 16, {
     size: 10,
     bold: true,
+    color: UI.ink,
     maxW: VIEW_W - 30,
   })
 
@@ -165,12 +181,14 @@ export function drawRoomScreen(ctx: CanvasRenderingContext2D, v: RoomView): void
     const f = FURNITURE[start + i]
     const r = paletteRect(i)
     if (!f) {
-      fillRRect(ctx, r, 10, 'rgba(255,255,255,.05)')
+      fillRRect(ctx, r, 10, 'rgba(255,255,255,.3)')
       continue
     }
     const on = v.picked === f.kind
-    fillRRect(ctx, r, 10, on ? 'rgba(127,227,212,.32)' : 'rgba(255,255,255,.12)')
-    strokeRRect(ctx, r, 10, on ? '#ffffff' : 'rgba(255,255,255,.18)', on ? 2.2 : 1.2)
+    fillRRect(ctx, { ...r, y: r.y + 2 }, 10, UI.shadow)
+    if (on) fillGlow(ctx, r, 10)
+    else fillRRect(ctx, r, 10, UI.cell)
+    strokeRRect(ctx, r, 10, UI.white, on ? 2.4 : 1.4)
     paintCrop(
       ctx,
       f.build(0, 0),
@@ -179,7 +197,8 @@ export function drawRoomScreen(ctx: CanvasRenderingContext2D, v: RoomView): void
     )
     text(ctx, f.name, r.x + r.w / 2, r.y + r.h - 7, {
       size: 7.5,
-      color: on ? UI.ink : UI.inkSoft,
+      bold: on,
+      color: UI.ink,
       maxW: r.w - 4,
     })
   }
@@ -189,15 +208,15 @@ export function drawRoomScreen(ctx: CanvasRenderingContext2D, v: RoomView): void
       [PREV_RECT, '◀'],
       [NEXT_RECT, '▶'],
     ] as const) {
-      fillRRect(ctx, r, 8, 'rgba(255,255,255,.14)')
-      text(ctx, label, r.x + r.w / 2, r.y + r.h / 2, { size: 11 })
+      fillRRect(ctx, r, 8, UI.panel)
+      text(ctx, label, r.x + r.w / 2, r.y + r.h / 2, { size: 11, color: UI.lavender })
     }
   }
 
   drawButton(ctx, TRASH_RECT, '🗑️ 치우기', {
-    accent: '#ffb1d1',
+    accent: UI.pinkSoft,
     disabled: v.selected === null,
     size: 12,
   })
-  drawButton(ctx, CLEAR_RECT, '↺ 다치우기', { accent: UI.violet, size: 12 })
+  drawButton(ctx, CLEAR_RECT, '↺ 다치우기', { accent: UI.lavenderSoft, size: 12 })
 }

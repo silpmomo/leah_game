@@ -7,13 +7,17 @@
 import { describe, expect, it } from 'vitest'
 import { VIEW_H, VIEW_W, type Rect } from '../src/engine/view'
 import { CATEGORIES } from '../src/doll/kinds'
+import { A, DOLL_H, DOLL_W } from '../src/doll/body'
+import { SWATCHES, TINTABLE } from '../src/doll/tint'
 import { GAMES } from '../src/games/registry'
 import { MISSIONS } from '../src/runway/missions'
 import { STICKERS } from '../src/stickers/album'
 import { FURNITURE } from '../src/room/items'
-import { cardRect, lastCardBottom } from '../src/ui/hub'
+import { HUB_DOLL_BOX, STICKER_BAR, cardRect, lastCardBottom } from '../src/ui/hub'
 import {
+  BUBBLE_RECT,
   CLOSET_TOOLS,
+  CTA_RECT,
   DOLL_BOX,
   PER_PAGE,
   PREV_RECT,
@@ -22,15 +26,24 @@ import {
   backdropRect,
   itemRect,
   lookRect,
+  swatchPillRect,
+  swatchRect,
   tabRect,
   toolRect,
 } from '../src/ui/closetScreen'
 import { CONTINUE_RECT, RUNWAY_TOOLS, missionRect } from '../src/ui/runwayScreen'
 import { gemRect, baseRect, savedRect, SAVE_RECT, STAGE as CROWN_STAGE } from '../src/ui/crownScreen'
-import { ROOM_RECT, paletteRect, TRASH_RECT, CLEAR_RECT } from '../src/ui/roomScreen'
+import {
+  ROOM_RECT,
+  paletteRect,
+  TRASH_RECT,
+  CLEAR_RECT,
+  PREV_RECT as ROOM_PREV,
+  NEXT_RECT as ROOM_NEXT,
+} from '../src/ui/roomScreen'
 import { stickerRect } from '../src/ui/albumScreen'
 import { BACKDROPS } from '../src/doll/backdrop'
-import { MUTE_RECT, BACK_RECT, TOP_H } from '../src/render/ui'
+import { COIN_RECT, MUTE_RECT, BACK_RECT, TOP_H } from '../src/render/ui'
 
 function inScreen(r: Rect): boolean {
   return r.x >= 0 && r.y >= 0 && r.x + r.w <= VIEW_W && r.y + r.h <= VIEW_H
@@ -46,12 +59,15 @@ function tappable(r: Rect): boolean {
 }
 
 describe('공통 부품', () => {
-  it('뒤로·소리 버튼이 상단바 안에 있다', () => {
-    expect(inScreen(BACK_RECT)).toBe(true)
-    expect(inScreen(MUTE_RECT)).toBe(true)
-    expect(BACK_RECT.y + BACK_RECT.h).toBeLessThanOrEqual(TOP_H)
-    expect(MUTE_RECT.y + MUTE_RECT.h).toBeLessThanOrEqual(TOP_H)
+  it('스티커·뒤로·소리 버튼이 상단 HUD 안에 있고 서로 안 겹친다', () => {
+    for (const r of [COIN_RECT, BACK_RECT, MUTE_RECT]) {
+      expect(inScreen(r)).toBe(true)
+      expect(tappable(r)).toBe(true)
+      expect(r.y + r.h).toBeLessThanOrEqual(TOP_H)
+    }
     expect(overlaps(BACK_RECT, MUTE_RECT)).toBe(false)
+    expect(overlaps(COIN_RECT, BACK_RECT)).toBe(false)
+    expect(overlaps(COIN_RECT, MUTE_RECT)).toBe(false)
   })
 })
 
@@ -69,75 +85,111 @@ describe('허브', () => {
     }
   })
 
+  it('카드가 인형 자리·HUD 와 겹치지 않는다', () => {
+    for (let i = 0; i < GAMES.length; i++) {
+      expect(overlaps(cardRect(i), HUB_DOLL_BOX)).toBe(false)
+      expect(cardRect(i).y).toBeGreaterThanOrEqual(TOP_H)
+    }
+  })
+
   it('마지막 카드 아래에 스티커 줄 자리가 남는다', () => {
-    expect(lastCardBottom()).toBeLessThan(VIEW_H - 50)
+    expect(lastCardBottom()).toBeLessThan(STICKER_BAR.y)
+    expect(inScreen(STICKER_BAR)).toBe(true)
   })
 })
 
 describe('옷장', () => {
-  it('무대·탭·옷칸·도구가 겹치지 않고 순서대로 쌓인다', () => {
-    const tab = tabRect(0)
-    const lastTab = tabRect(CATEGORIES.length - 1)
-    const cell = itemRect(0)
-    const lastCell = itemRect(PER_PAGE - 1)
-    const tool = toolRect(0, CLOSET_TOOLS.length)
-
-    expect(STAGE.y).toBeGreaterThanOrEqual(TOP_H)
-    expect(STAGE.y + STAGE.h).toBeLessThanOrEqual(tab.y)
-    expect(lastTab.y + lastTab.h).toBeLessThanOrEqual(cell.y)
-    expect(lastCell.y + lastCell.h).toBeLessThanOrEqual(tool.y)
-    expect(tool.y + tool.h).toBeLessThanOrEqual(VIEW_H)
+  it('무대는 화면 전체이고 인형은 HUD 아래 왼쪽에 선다', () => {
+    expect(STAGE).toEqual({ x: 0, y: 0, w: VIEW_W, h: VIEW_H })
+    expect(DOLL_BOX.y).toBeGreaterThanOrEqual(TOP_H)
+    expect(inScreen(DOLL_BOX)).toBe(true)
+    // 인형 좌표계가 배율 1 로 그려진다 — 참고작처럼 크게
+    expect(DOLL_BOX.w).toBeGreaterThanOrEqual(DOLL_W)
+    expect(DOLL_BOX.h).toBeGreaterThanOrEqual(DOLL_H)
   })
 
-  it('탭 열 개가 모두 화면 안이고 누를 만하다', () => {
+  it('말풍선은 인형 머리 위 빈 공간에 뜬다', () => {
+    expect(inScreen(BUBBLE_RECT)).toBe(true)
+    expect(BUBBLE_RECT.y).toBeGreaterThanOrEqual(TOP_H)
+    // 인형(배율 1)의 머리카락 꼭대기
+    const headTop = DOLL_BOX.y + DOLL_BOX.h - DOLL_H + A.hairTop
+    expect(BUBBLE_RECT.y + BUBBLE_RECT.h + 9).toBeLessThanOrEqual(headTop)
+  })
+
+  it('분류 레일 열 개가 오른쪽 끝에 세로로 서고 누를 만하다', () => {
     for (let i = 0; i < CATEGORIES.length; i++) {
-      expect(inScreen(tabRect(i))).toBe(true)
-      expect(tappable(tabRect(i))).toBe(true)
+      const r = tabRect(i)
+      expect(inScreen(r)).toBe(true)
+      expect(tappable(r)).toBe(true)
+      expect(r.y).toBeGreaterThanOrEqual(TOP_H)
+      expect(overlaps(r, DOLL_BOX)).toBe(false)
+      if (i > 0) expect(overlaps(tabRect(i - 1), r)).toBe(false)
     }
   })
 
-  it('옷 칸 여덟 개가 화면 안이고 서로 안 겹친다', () => {
+  it('옷 칸 여섯 개가 세로 한 열이고 서로·레일·인형과 안 겹친다', () => {
     for (let i = 0; i < PER_PAGE; i++) {
-      expect(inScreen(itemRect(i))).toBe(true)
-      expect(tappable(itemRect(i))).toBe(true)
-      for (let j = i + 1; j < PER_PAGE; j++) {
-        expect(overlaps(itemRect(i), itemRect(j))).toBe(false)
-      }
+      const r = itemRect(i)
+      expect(inScreen(r)).toBe(true)
+      expect(tappable(r)).toBe(true)
+      expect(overlaps(r, DOLL_BOX)).toBe(false)
+      for (let j = 0; j < CATEGORIES.length; j++) expect(overlaps(r, tabRect(j))).toBe(false)
+      for (let j = i + 1; j < PER_PAGE; j++) expect(overlaps(r, itemRect(j))).toBe(false)
     }
   })
 
-  it('페이지 화살표가 옷 칸을 가리지 않는다', () => {
+  it('페이지 화살표가 옷 칸 위·아래에 있고 가리지 않는다', () => {
     for (let i = 0; i < PER_PAGE; i++) {
       expect(overlaps(PREV_RECT, itemRect(i))).toBe(false)
       expect(overlaps(NEXT_RECT, itemRect(i))).toBe(false)
     }
     expect(inScreen(PREV_RECT)).toBe(true)
     expect(inScreen(NEXT_RECT)).toBe(true)
+    expect(PREV_RECT.y + PREV_RECT.h).toBeLessThanOrEqual(itemRect(0).y)
+    expect(NEXT_RECT.y).toBeGreaterThanOrEqual(itemRect(PER_PAGE - 1).y + itemRect(PER_PAGE - 1).h)
   })
 
-  it('도구 다섯 개가 한 줄에 들어간다', () => {
-    for (let i = 0; i < CLOSET_TOOLS.length; i++) {
-      const r = toolRect(i, CLOSET_TOOLS.length)
-      expect(inScreen(r)).toBe(true)
-      expect(tappable(r)).toBe(true)
-      if (i > 0) expect(overlaps(toolRect(i - 1, CLOSET_TOOLS.length), r)).toBe(false)
+  it('색 견본이 인형과 옷 칸 사이에 들어가고 옷 칸·레일과 안 겹친다', () => {
+    for (const cat of TINTABLE) {
+      const n = SWATCHES[cat]!.length
+      expect(n).toBe(6)
+      expect(inScreen(swatchPillRect(n))).toBe(true)
+      for (let i = 0; i <= n; i++) {
+        const r = swatchRect(i)
+        expect(inScreen(r)).toBe(true)
+        expect(tappable(r)).toBe(true)
+        for (let j = 0; j < PER_PAGE; j++) expect(overlaps(r, itemRect(j))).toBe(false)
+        for (let j = 0; j < CATEGORIES.length; j++) expect(overlaps(r, tabRect(j))).toBe(false)
+        if (i > 0) expect(overlaps(swatchRect(i - 1), r)).toBe(false)
+      }
     }
   })
 
-  it('인형 자리는 무대 안이고 말풍선 자리를 비워 둔다', () => {
-    expect(DOLL_BOX.y).toBeGreaterThanOrEqual(STAGE.y)
-    expect(DOLL_BOX.y + DOLL_BOX.h).toBeLessThan(STAGE.y + STAGE.h - 40)
+  it('도구 다섯 개가 아래 왼쪽에 원형으로 늘어서고 레일과 안 겹친다', () => {
+    for (let i = 0; i < CLOSET_TOOLS.length; i++) {
+      const r = toolRect(i, CLOSET_TOOLS)
+      expect(inScreen(r)).toBe(true)
+      expect(tappable(r)).toBe(true)
+      expect(r.y).toBeGreaterThanOrEqual(DOLL_BOX.y + DOLL_BOX.h)
+      if (i > 0) expect(overlaps(toolRect(i - 1, CLOSET_TOOLS), r)).toBe(false)
+      for (let j = 0; j < CATEGORIES.length; j++) expect(overlaps(r, tabRect(j))).toBe(false)
+    }
   })
 
-  it('배경 카드 여섯 개가 화면 안이다', () => {
+  it('배경 카드 일곱 개가 화면 안이고 안 겹친다', () => {
     for (let i = 0; i < BACKDROPS.length; i++) {
       expect(inScreen(backdropRect(i))).toBe(true)
+      expect(backdropRect(i).y).toBeGreaterThanOrEqual(TOP_H)
+      for (let j = i + 1; j < BACKDROPS.length; j++) {
+        expect(overlaps(backdropRect(i), backdropRect(j))).toBe(false)
+      }
     }
   })
 
   it('룩북 아홉 칸이 화면 안이다', () => {
     for (let i = 0; i < 9; i++) {
       expect(inScreen(lookRect(i))).toBe(true)
+      expect(lookRect(i).y).toBeGreaterThanOrEqual(TOP_H)
     }
   })
 })
@@ -147,6 +199,7 @@ describe('패션쇼', () => {
     for (let i = 0; i < MISSIONS.length; i++) {
       expect(inScreen(missionRect(i))).toBe(true)
       expect(tappable(missionRect(i))).toBe(true)
+      expect(missionRect(i).y).toBeGreaterThanOrEqual(TOP_H)
     }
     for (let i = 1; i < MISSIONS.length; i++) {
       expect(overlaps(missionRect(i - 1), missionRect(i))).toBe(false)
@@ -159,17 +212,23 @@ describe('패션쇼', () => {
     expect(inScreen(CONTINUE_RECT)).toBe(true)
   })
 
-  it('도구 네 개도 한 줄에 들어간다', () => {
+  it('도구 셋은 원형, 완성은 오른쪽 아래 큰 버튼이고 서로 안 겹친다', () => {
+    expect(toolRect(RUNWAY_TOOLS.indexOf('done'), RUNWAY_TOOLS)).toEqual(CTA_RECT)
     for (let i = 0; i < RUNWAY_TOOLS.length; i++) {
-      const r = toolRect(i, RUNWAY_TOOLS.length)
+      const r = toolRect(i, RUNWAY_TOOLS)
       expect(inScreen(r)).toBe(true)
       expect(tappable(r)).toBe(true)
+      for (let j = i + 1; j < RUNWAY_TOOLS.length; j++) {
+        expect(overlaps(r, toolRect(j, RUNWAY_TOOLS))).toBe(false)
+      }
+      for (let j = 0; j < CATEGORIES.length; j++) expect(overlaps(r, tabRect(j))).toBe(false)
     }
   })
 })
 
 describe('왕관 공방', () => {
-  it('보석·바탕·버튼이 화면 안이고 작업대와 안 겹친다', () => {
+  it('작업대가 HUD 아래에 있고 보석·바탕·버튼이 화면 안이며 작업대와 안 겹친다', () => {
+    expect(CROWN_STAGE.y).toBeGreaterThanOrEqual(TOP_H)
     for (let i = 0; i < 8; i++) {
       expect(inScreen(gemRect(i))).toBe(true)
       expect(tappable(gemRect(i))).toBe(true)
@@ -184,10 +243,19 @@ describe('왕관 공방', () => {
 })
 
 describe('방 꾸미기', () => {
-  it('방과 창고가 겹치지 않는다', () => {
+  it('방이 HUD 아래에서 시작하고 창고·버튼과 겹치지 않는다', () => {
+    expect(ROOM_RECT.y).toBeGreaterThanOrEqual(TOP_H)
     for (let i = 0; i < 8; i++) {
       expect(inScreen(paletteRect(i))).toBe(true)
+      expect(tappable(paletteRect(i))).toBe(true)
       expect(overlaps(ROOM_RECT, paletteRect(i))).toBe(false)
+      expect(overlaps(TRASH_RECT, paletteRect(i))).toBe(false)
+      expect(overlaps(CLEAR_RECT, paletteRect(i))).toBe(false)
+    }
+    for (const r of [ROOM_PREV, ROOM_NEXT]) {
+      expect(inScreen(r)).toBe(true)
+      expect(tappable(r)).toBe(true)
+      for (let i = 0; i < 8; i++) expect(overlaps(r, paletteRect(i))).toBe(false)
     }
     expect(inScreen(ROOM_RECT)).toBe(true)
     expect(inScreen(TRASH_RECT)).toBe(true)
@@ -205,6 +273,7 @@ describe('스티커 앨범', () => {
     for (let i = 0; i < STICKERS.length; i++) {
       expect(inScreen(stickerRect(i))).toBe(true)
       expect(tappable(stickerRect(i))).toBe(true)
+      expect(stickerRect(i).y).toBeGreaterThanOrEqual(TOP_H)
     }
   })
 })

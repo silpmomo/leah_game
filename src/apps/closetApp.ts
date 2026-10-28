@@ -6,17 +6,20 @@
  */
 import { josa } from '../engine/hangul'
 import { createRng, type Rng } from '../engine/rng'
-import { burst, sparkleAt, stepParticles, type Particle } from '../engine/particles'
+import { burst, petals, sparkleAt, stepParticles, type Particle } from '../engine/particles'
 import type { Expression } from '../doll/body'
 import { CATEGORIES, type Category, type Item } from '../doll/kinds'
 import { equip, randomOutfit, wornCount } from '../doll/outfit'
+import { isTintable, swatchCount } from '../doll/tint'
 import { itemsOf } from '../doll/wardrobe'
 import { LOOK_MAX, clampPage, pageCount, removeLook, saveLook } from '../closet/state'
 import { drawParticles } from '../render/effects'
 import { backHit } from '../render/ui'
 import {
+  CLOSET_TOOLS,
+  DOLL_BOX,
+  DOLL_CENTER,
   PER_PAGE,
-  STAGE,
   backdropHit,
   closetHit,
   drawBackdropPicker,
@@ -32,6 +35,9 @@ type Screen = 'play' | 'backdrop' | 'lookbook'
 
 const TOAST_MS = 2.2
 const EXPR_MS = 1.1
+/** 꽃잎이 하나씩 태어나는 간격(초)과 동시에 떠 있는 최대 수 */
+const PETAL_EVERY = 0.5
+const PETAL_MAX = 22
 
 export function createClosetApp(store: Store, audio: Audio): GameApp {
   let screen: Screen = 'play'
@@ -43,9 +49,9 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
   let exprMs = 0
   let seed = 20260824
   const rngNext = (): Rng => createRng((seed = (seed * 1664525 + 1013904223) >>> 0))
+  let petalMs = 0
 
-  const dollCx = STAGE.x + STAGE.w / 2
-  const dollCy = STAGE.y + STAGE.h * 0.45
+  const [dollCx, dollCy] = DOLL_CENTER
 
   function pool(c: Category): Item[] {
     return [...itemsOf(c), ...store.extraItems().filter((e) => e.cat === c)]
@@ -96,6 +102,7 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
       }
       case 'strip':
         store.setOutfit({})
+        store.setTints({})
         audio.play('remove')
         say('처음부터 다시 꾸며볼까?', '🧺', 'smile')
         break
@@ -114,7 +121,11 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
           break
         }
         store.setLooks(
-          saveLook(store.looks(), { outfit: store.outfit(), backdrop: store.backdrop() }),
+          saveLook(store.looks(), {
+            outfit: store.outfit(),
+            backdrop: store.backdrop(),
+            tints: store.tints(),
+          }),
         )
         audio.play('camera')
         particles = [...particles, ...burst(rngNext(), dollCx, dollCy - 40, 26)]
@@ -130,13 +141,27 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
     enter(): void {
       screen = 'play'
       toast = null
-      particles = []
+      // 처음부터 꽃잎이 떠 있어야 한다. 빈 하늘에서 하나씩 내려오면 심심하다
+      particles = petals(rngNext(), DOLL_BOX.x, DOLL_BOX.x + DOLL_BOX.w, 10).map((p, i) => ({
+        ...p,
+        y: 40 + i * 52,
+      }))
+      petalMs = 0
       expr = 'smile'
       exprMs = 0
     },
 
     update(dt: number): void {
       particles = stepParticles(particles, dt)
+      if (screen === 'play') {
+        petalMs += dt
+        if (petalMs >= PETAL_EVERY) {
+          petalMs -= PETAL_EVERY
+          if (particles.filter((p) => p.drift).length < PETAL_MAX) {
+            particles = [...particles, ...petals(rngNext(), DOLL_BOX.x, DOLL_BOX.x + DOLL_BOX.w, 1)]
+          }
+        }
+      }
       if (toast) {
         toast.ms -= dt
         if (toast.ms <= 0) toast = null
@@ -149,11 +174,11 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
 
     render(ctx: CanvasRenderingContext2D): void {
       if (screen === 'backdrop') {
-        drawBackdropPicker(ctx, store.backdrop(), audio.muted())
+        drawBackdropPicker(ctx, store.backdrop(), audio.muted(), store.stickerCount())
         return
       }
       if (screen === 'lookbook') {
-        drawLookbook(ctx, store.looks(), store.resolve, audio.muted())
+        drawLookbook(ctx, store.looks(), store.resolve, audio.muted(), store.stickerCount())
         return
       }
 
@@ -170,6 +195,8 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
         toast: toast?.msg ?? null,
         toastEmoji: toast?.emoji ?? '👑',
         expr,
+        tints: store.tints(),
+        stickers: store.stickerCount(),
       })
       drawParticles(ctx, particles)
     },
@@ -205,6 +232,7 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
         if (look) {
           store.setOutfit(look.outfit)
           store.setBackdrop(look.backdrop)
+          store.setTints(look.tints ?? {})
           audio.play('wear')
           screen = 'play'
           sparkle(18)
@@ -213,9 +241,25 @@ export function createClosetApp(store: Store, audio: Audio): GameApp {
         return null
       }
 
-      const act = closetHit(px, py, shown().length)
+      const act = closetHit(
+        px,
+        py,
+        shown().length,
+        CLOSET_TOOLS,
+        isTintable(cat) ? swatchCount(cat) : 0,
+      )
       if (!act) return null
       switch (act.kind) {
+        case 'swatch': {
+          const next = { ...store.tints() }
+          if (act.index === 0) delete next[cat]
+          else next[cat] = act.index
+          store.setTints(next)
+          audio.play('sparkle')
+          sparkle(10)
+          say(act.index === 0 ? '원래 색으로!' : '이 색 어때?', '🎨', 'sparkle')
+          break
+        }
         case 'tab':
           cat = act.cat
           audio.play('tap')

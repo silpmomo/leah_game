@@ -89,6 +89,7 @@ export function createCrownApp(store: Store, audio: Audio): GameApp {
         eraser,
         saved: store.crowns(),
         muted: audio.muted(),
+        stickers: store.stickerCount(),
         message,
       })
       drawParticles(ctx, particles)

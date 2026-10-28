@@ -93,6 +93,7 @@ export function createRoomApp(store: Store, audio: Audio): GameApp {
         outfit: store.outfit(),
         resolve: store.resolve,
         muted: audio.muted(),
+        stickers: store.stickerCount(),
         message,
       })
       drawParticles(ctx, particles)

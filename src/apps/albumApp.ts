@@ -26,7 +26,7 @@ export function createAlbumApp(store: Store, audio: Audio): GameApp {
     },
 
     render(ctx: CanvasRenderingContext2D): void {
-      drawAlbum(ctx, store.album(), audio.muted(), detail)
+      drawAlbum(ctx, store.album(), audio.muted(), detail, store.stickerCount())
     },
 
     pointerDown(px: number, py: number): 'hub' | null {

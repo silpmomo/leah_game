@@ -1,22 +1,25 @@
 /**
  * 패션쇼 화면 — 미션 목록 · 꾸미기 · 결과.
  *
- * 꾸미기 화면은 옷장과 같은 부품(탭·옷 칸·도구)을 쓴다. 아이가 두 놀이
- * 사이를 오갈 때 조작법이 달라지면 안 된다.
+ * 꾸미기 화면은 옷장과 같은 부품(레일·옷 목록·도구)을 쓴다. 아이가 두 놀이
+ * 사이를 오갈 때 조작법이 달라지면 안 된다. 색 견본만 없다 — 채점이 색
+ * 태그로 되므로 원래 색으로 보여 준다.
  */
-import { VIEW_H, VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
-import { rectPath } from '../engine/shapes'
+import { VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
 import type { BackdropId } from '../doll/backdrop'
-import type { Category, Item } from '../doll/kinds'
+import { CATEGORIES, type Category, type Item } from '../doll/kinds'
 import { composeDoll, type Outfit, type Resolve } from '../doll/outfit'
 import { MISSIONS, reqIcon, reqLabel, type Mission } from '../runway/missions'
 import { starsOf, threeStarCount, type Progress } from '../runway/rules'
-import { paintShape } from '../render/paint'
 import {
   UI,
   drawBar,
   drawButton,
+  drawCheckBadge,
+  drawCountBadge,
+  drawCta,
   drawPanel,
+  drawSky,
   drawStars,
   drawTopBar,
   fillRRect,
@@ -24,7 +27,6 @@ import {
   text,
 } from '../render/ui'
 import {
-  DOLL_BOX,
   STAGE,
   drawItemGrid,
   drawStage,
@@ -59,30 +61,14 @@ export function drawMissionList(
   ctx: CanvasRenderingContext2D,
   progress: Progress,
   muted: boolean,
+  stickers = 0,
 ): void {
-  paintShape(ctx, { d: rectPath(0, 0, VIEW_W, VIEW_H), fill: '#3a1240' })
-  paintShape(ctx, {
-    d: rectPath(0, 0, VIEW_W, VIEW_H),
-    fill: {
-      kind: 'linear',
-      x0: 0,
-      y0: 0,
-      x1: 0,
-      y1: VIEW_H,
-      stops: [
-        [0, '#4a1852'],
-        [1, '#8a3a6e'],
-      ],
-    },
-  })
-  drawTopBar(ctx, '패션쇼', muted)
-
+  drawSky(ctx, 'sunset')
   const three = threeStarCount(progress)
-  text(ctx, '부탁을 듣고 코디를 맞춰주세요', VIEW_W / 2, 68, { size: 11, color: UI.inkSoft })
-  text(ctx, `⭐⭐⭐ ${three} / ${MISSIONS.length}`, VIEW_W / 2, 86, {
-    size: 10,
-    bold: true,
-    color: UI.gold,
+  drawTopBar(ctx, '패션쇼', muted, {
+    tag: `⭐⭐⭐ ${three} / ${MISSIONS.length}`,
+    tagIcon: '🎀',
+    stickers,
   })
 
   for (let i = 0; i < MISSIONS.length; i++) {
@@ -91,14 +77,15 @@ export function drawMissionList(
     const stars = starsOf(progress, m.id)
     const done = stars > 0
 
-    fillRRect(ctx, { ...r, y: r.y + 2 }, 12, 'rgba(0,0,0,.2)')
-    fillRRect(ctx, r, 12, done ? 'rgba(255,215,106,.22)' : 'rgba(255,255,255,.12)')
-    strokeRRect(ctx, r, 12, done ? UI.gold : 'rgba(255,255,255,.2)', done ? 2 : 1.2)
+    fillRRect(ctx, { ...r, y: r.y + 3 }, 12, UI.shadow)
+    fillRRect(ctx, r, 12, done ? '#fff6d2' : UI.panel)
+    strokeRRect(ctx, r, 12, done ? UI.gold : UI.panelLine, done ? 2.2 : 1.4)
 
-    text(ctx, `${i + 1}`, r.x + 12, r.y + 12, { size: 9, bold: true, color: UI.inkSoft })
+    drawCountBadge(ctx, r.x + 11, r.y + 11, i + 1, done ? UI.goldDeep : UI.lavender)
     text(ctx, m.emoji, r.x + r.w / 2, r.y + 28, { size: 22 })
     text(ctx, m.title, r.x + r.w / 2, r.y + 48, { size: 8.5, bold: true, maxW: r.w - 8 })
     drawStars(ctx, r.x + r.w / 2, r.y + 62, stars, 3, 9)
+    if (stars >= 3) drawCheckBadge(ctx, r.x + r.w - 10, r.y + 10, 7)
   }
 
   drawBar(
@@ -107,7 +94,7 @@ export function drawMissionList(
     three / MISSIONS.length,
     UI.gold,
   )
-  drawButton(ctx, CONTINUE_RECT, '▶ 이어서 하기', { accent: UI.pink, size: 15 })
+  drawCta(ctx, CONTINUE_RECT, '▶ 이어서 하기')
 }
 
 // ── 꾸미기 ─────────────────────────────────────────────────────
@@ -125,61 +112,75 @@ export type DressView = {
   muted: boolean
   /** 힌트로 짚어 준 조건 번호 */
   hint: number | null
+  stickers: number
 }
 
-const CARD_H = 56
+/**
+ * 꾸미기 화면의 인형 자리 — 옷장보다 조금 작게, 아래로 내린다.
+ * 위쪽에 부탁 카드(최대 두 줄)가 떠야 하는데, 옷장 크기 그대로면
+ * 카드가 얼굴을 가린다.
+ */
+export const DRESS_DOLL_BOX: Rect = { x: 0, y: 182, w: 200, h: 380 }
+
+/** 부탁 카드 — 인형 머리 위 왼쪽 빈 공간 */
+const CARD_X = 6
+const CARD_Y = 92
+const CARD_W = 188
+const CHIP_W = 88
+const CHIP_H = 20
 
 export function drawDressScreen(ctx: CanvasRenderingContext2D, v: DressView): void {
-  paintShape(ctx, { d: rectPath(0, 0, VIEW_W, VIEW_H), fill: '#31163f' })
   drawStage(
     ctx,
     STAGE,
     v.backdrop,
     composeDoll(v.outfit, { resolve: v.resolve }),
     0,
-    DOLL_BOX,
+    DRESS_DOLL_BOX,
   )
-  drawTopBar(ctx, v.mission.title, v.muted, { back: '← 목록' })
-
-  // 부탁 카드
-  const card: Rect = { x: 10, y: STAGE.y + STAGE.h - CARD_H - 8, w: VIEW_W - 20, h: CARD_H }
-  fillRRect(ctx, card, 12, 'rgba(24,8,36,.78)')
-  strokeRRect(ctx, card, 12, 'rgba(255,255,255,.25)', 1.2)
-  text(ctx, v.mission.emoji, card.x + 18, card.y + 16, { size: 15 })
-  text(ctx, v.mission.ask, card.x + 34 + (card.w - 44) / 2, card.y + 16, {
-    size: 11,
-    bold: true,
-    maxW: card.w - 46,
+  const c = CATEGORIES.find((k) => k.id === v.cat)
+  drawTopBar(ctx, v.mission.title, v.muted, {
+    back: '목록',
+    tag: c?.name ?? '',
+    tagIcon: c?.icon ?? '',
+    stickers: v.stickers,
   })
 
+  // 부탁 카드
   const n = v.mission.reqs.length
-  const chipW = Math.min(72, (card.w - 12 - (n - 1) * 4) / n)
+  const rows = Math.ceil(n / 2)
+  const card: Rect = { x: CARD_X, y: CARD_Y, w: CARD_W, h: 30 + rows * (CHIP_H + 4) + 4 }
+  drawPanel(ctx, card, 12)
+  text(ctx, v.mission.emoji, card.x + 14, card.y + 15, { size: 13 })
+  text(ctx, v.mission.ask, card.x + 26 + (card.w - 32) / 2, card.y + 15, {
+    size: 10.5,
+    bold: true,
+    maxW: card.w - 34,
+  })
+
   for (let i = 0; i < n; i++) {
     const req = v.mission.reqs[i]!
     const ok = v.met[i] === true
     const r: Rect = {
-      x: card.x + 6 + i * (chipW + 4),
-      y: card.y + 28,
-      w: chipW,
-      h: 22,
+      x: card.x + 6 + (i % 2) * (CHIP_W + 4),
+      y: card.y + 30 + Math.floor(i / 2) * (CHIP_H + 4),
+      w: CHIP_W,
+      h: CHIP_H,
     }
-    fillRRect(ctx, r, 8, ok ? 'rgba(127,227,212,.32)' : 'rgba(255,255,255,.12)')
-    if (v.hint === i) strokeRRect(ctx, r, 8, UI.gold, 2)
-    text(ctx, ok ? '✓' : reqIcon(req), r.x + 11, r.y + 11, {
-      size: ok ? 11 : 10,
-      bold: true,
-      color: ok ? UI.mint : UI.inkSoft,
-    })
-    text(ctx, reqLabel(req), r.x + 20 + (r.w - 24) / 2, r.y + 11, {
+    fillRRect(ctx, r, 10, ok ? '#dff7d0' : UI.lavenderSoft)
+    if (v.hint === i) strokeRRect(ctx, r, 10, UI.goldDeep, 2.2)
+    if (ok) drawCheckBadge(ctx, r.x + 11, r.y + 10, 6.5)
+    else text(ctx, reqIcon(req), r.x + 11, r.y + 10.5, { size: 10 })
+    text(ctx, reqLabel(req), r.x + 20 + (r.w - 24) / 2, r.y + 10.5, {
       size: 8,
       bold: ok,
-      color: ok ? UI.ink : UI.inkSoft,
+      color: UI.ink,
       maxW: r.w - 24,
     })
   }
 
-  drawTabs(ctx, v.cat)
   drawItemGrid(ctx, v.shown, v.outfit, v.page, v.pages)
+  drawTabs(ctx, v.cat, v.outfit)
   drawTools(ctx, RUNWAY_TOOLS)
 }
 
@@ -211,19 +212,24 @@ export function drawResult(
     backdrop: BackdropId
     muted: boolean
     hasNext: boolean
+    stickers: number
   },
 ): void {
-  paintShape(ctx, { d: rectPath(0, 0, VIEW_W, VIEW_H), fill: '#31163f' })
   drawStage(
     ctx,
-    { x: 0, y: 0, w: VIEW_W, h: 430 },
+    STAGE,
     v.backdrop,
     composeDoll(v.outfit, { resolve: v.resolve, expr: v.stars >= 2 ? 'sparkle' : 'smile' }),
     0,
     // 상단바 아래로 내려 세운다. 무대 전체를 쓰면 머리가 제목에 가린다
-    { x: 30, y: 56, w: VIEW_W - 60, h: 366 },
+    { x: 60, y: 90, w: 240, h: 344 },
   )
-  drawTopBar(ctx, v.mission.title, v.muted, { back: '← 목록' })
+  drawTopBar(ctx, v.mission.title, v.muted, {
+    back: '목록',
+    tag: '무대 끝!',
+    tagIcon: '🎉',
+    stickers: v.stickers,
+  })
 
   const panel: Rect = { x: 20, y: 440, w: VIEW_W - 40, h: 100 }
   drawPanel(ctx, panel, 16)
@@ -237,7 +243,7 @@ export function drawResult(
     { size: 10, color: UI.inkSoft },
   )
 
-  drawButton(ctx, RESULT_AGAIN, '↺ 다시', { accent: '#ffb1d1' })
-  drawButton(ctx, RESULT_LIST, '≡ 목록', { accent: UI.violet })
-  drawButton(ctx, RESULT_NEXT, '다음 ▶', { accent: UI.gold, disabled: !v.hasNext })
+  drawButton(ctx, RESULT_AGAIN, '↺ 다시', { accent: UI.pinkSoft })
+  drawButton(ctx, RESULT_LIST, '≡ 목록', { accent: UI.lavenderSoft })
+  drawCta(ctx, RESULT_NEXT, '다음 ▶', { disabled: !v.hasNext })
 }

@@ -34,16 +34,16 @@ import type { Category, ColorTag, Item, ThemeTag } from './kinds'
 
 /** 썸네일에서 잘라 보여줄 영역 (인형 좌표) */
 export const THUMB_VIEW: Record<Category, Rect> = {
-  dress: { x: 34, y: 118, w: 132, h: 186 },
-  hair: { x: 26, y: 8, w: 148, h: 170 },
-  crown: { x: 50, y: 6, w: 100, h: 62 },
-  shoes: { x: 64, y: 244, w: 72, h: 64 },
-  necklace: { x: 74, y: 118, w: 52, h: 50 },
-  gloves: { x: 42, y: 152, w: 116, h: 76 },
-  cape: { x: 0, y: 116, w: 200, h: 192 },
-  wings: { x: 0, y: 96, w: 200, h: 154 },
-  earrings: { x: 44, y: 84, w: 112, h: 36 },
-  wand: { x: 106, y: 124, w: 94, h: 132 },
+  dress: { x: 4, y: 96, w: 192, h: 322 },
+  hair: { x: 46, y: 18, w: 108, h: 212 },
+  crown: { x: 72, y: 12, w: 56, h: 42 },
+  shoes: { x: 78, y: 370, w: 44, h: 50 },
+  necklace: { x: 84, y: 96, w: 32, h: 30 },
+  gloves: { x: 54, y: 150, w: 92, h: 88 },
+  cape: { x: 0, y: 96, w: 200, h: 324 },
+  wings: { x: 0, y: 40, w: 200, h: 240 },
+  earrings: { x: 72, y: 56, w: 56, h: 30 },
+  wand: { x: 108, y: 166, w: 56, h: 86 },
 }
 
 type Row = {
@@ -247,7 +247,7 @@ const DRESSES: Item[] = [
 
 // ── 머리 8 ─────────────────────────────────────────────────────
 
-const BROWN = { base: '#2b1d18', dark: '#1a100d', shine: '#5d4038' }
+const BROWN = { base: '#4a2e24', dark: '#2c1913', shine: '#8a5a48' }
 
 const HAIRS: Item[] = [
   hair({ id: 'hair-long-brown', name: '긴 생머리', color: 'brown' }, { style: 'long', ...BROWN }),

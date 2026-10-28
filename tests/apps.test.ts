@@ -36,6 +36,8 @@ const { SLOTS } = await import('../src/doll/custom')
 const { cropFit } = await import('../src/render/paint')
 const { FURNITURE } = await import('../src/room/items')
 const { MISSIONS } = await import('../src/runway/missions')
+const { BACKDROPS } = await import('../src/doll/backdrop')
+const { swatchCount } = await import('../src/doll/tint')
 
 /** 소리는 내지 않는다 */
 const silentAudio = {
@@ -84,27 +86,28 @@ describe('공주 옷장 조작', () => {
   })
 
   it('랜덤 버튼은 드레스와 머리를 채운다', () => {
-    app.pointerDown(...center(closetUi.toolRect(0, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(0, closetUi.CLOSET_TOOLS)))
     expect(store.outfit().dress).toBeTruthy()
     expect(store.outfit().hair).toBeTruthy()
   })
 
   it('다벗기는 기본 옷만 남긴다', () => {
-    app.pointerDown(...center(closetUi.toolRect(0, closetUi.CLOSET_TOOLS.length)))
-    app.pointerDown(...center(closetUi.toolRect(1, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(0, closetUi.CLOSET_TOOLS)))
+    app.pointerDown(...center(closetUi.toolRect(1, closetUi.CLOSET_TOOLS)))
     expect(Object.keys(store.outfit()).length).toBe(0)
   })
 
   it('배경을 바꾼다', () => {
-    app.pointerDown(...center(closetUi.toolRect(2, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(2, closetUi.CLOSET_TOOLS)))
     expect(app.screen()).toBe('backdrop')
-    app.pointerDown(...center(closetUi.backdropRect(3)))
+    const snow = BACKDROPS.findIndex((b) => b.id === 'snow')
+    app.pointerDown(...center(closetUi.backdropRect(snow)))
     expect(store.backdrop()).toBe('snow')
     expect(app.screen()).toBe('play')
   })
 
   it('사진은 옷을 입어야 찍힌다', () => {
-    const photo = center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS.length))
+    const photo = center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS))
     app.pointerDown(...photo)
     expect(store.looks().length).toBe(0)
 
@@ -116,11 +119,11 @@ describe('공주 옷장 조작', () => {
   it('룩북에서 코디를 되살린다', () => {
     app.pointerDown(...center(closetUi.itemRect(1)))
     const worn = store.outfit().dress
-    app.pointerDown(...center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS.length)))
-    app.pointerDown(...center(closetUi.toolRect(1, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS)))
+    app.pointerDown(...center(closetUi.toolRect(1, closetUi.CLOSET_TOOLS)))
     expect(store.outfit().dress).toBeUndefined()
 
-    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS)))
     expect(app.screen()).toBe('lookbook')
     app.pointerDown(...center(closetUi.lookRect(0)))
     expect(store.outfit().dress).toBe(worn)
@@ -129,8 +132,8 @@ describe('공주 옷장 조작', () => {
 
   it('룩북에서 사진을 지운다', () => {
     app.pointerDown(...center(closetUi.itemRect(0)))
-    app.pointerDown(...center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS.length)))
-    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS)))
+    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS)))
     app.pointerDown(...center(closetUi.lookDeleteRect(0)))
     expect(store.looks().length).toBe(0)
   })
@@ -138,14 +141,41 @@ describe('공주 옷장 조작', () => {
   it('페이지를 넘기면 다음 옷이 나온다', () => {
     app.pointerDown(...center(closetUi.NEXT_RECT))
     app.pointerDown(...center(closetUi.itemRect(0)))
-    expect(store.outfit().dress).toBe(itemsOf('dress')[8]!.id)
+    expect(store.outfit().dress).toBe(itemsOf('dress')[closetUi.PER_PAGE]!.id)
   })
 
   it('뒤로 버튼은 하위 화면에서 옷장으로, 옷장에서 허브로', () => {
-    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS)))
     expect(app.pointerDown(...center(BACK_RECT))).toBeNull()
     expect(app.screen()).toBe('play')
     expect(app.pointerDown(...center(BACK_RECT))).toBe('hub')
+  })
+
+  it('색 견본을 누르면 저장되고, 원래 색을 누르면 지워진다', () => {
+    app.pointerDown(...center(closetUi.itemRect(0)))
+    app.pointerDown(...center(closetUi.swatchRect(2)))
+    expect(store.tints().dress).toBe(2)
+    app.pointerDown(...center(closetUi.swatchRect(0)))
+    expect(store.tints().dress).toBeUndefined()
+    expect(swatchCount('dress')).toBeGreaterThanOrEqual(2)
+  })
+
+  it('색 견본은 왕관 분류에서는 눌리지 않는다', () => {
+    const crownTab = CATEGORIES.findIndex((c) => c.id === 'crown')
+    app.pointerDown(...center(closetUi.tabRect(crownTab)))
+    app.pointerDown(...center(closetUi.swatchRect(1)))
+    expect(store.tints()).toEqual({})
+  })
+
+  it('룩북이 색 견본까지 되살린다', () => {
+    app.pointerDown(...center(closetUi.itemRect(0)))
+    app.pointerDown(...center(closetUi.swatchRect(3)))
+    app.pointerDown(...center(closetUi.toolRect(3, closetUi.CLOSET_TOOLS))) // 사진
+    app.pointerDown(...center(closetUi.toolRect(1, closetUi.CLOSET_TOOLS))) // 다벗기
+    expect(store.tints()).toEqual({})
+    app.pointerDown(...center(closetUi.toolRect(4, closetUi.CLOSET_TOOLS))) // 룩북
+    app.pointerDown(...center(closetUi.lookRect(0)))
+    expect(store.tints().dress).toBe(3)
   })
 
   it('첫 드레스를 입으면 스티커가 나온다', () => {
@@ -173,28 +203,28 @@ describe('패션쇼 조작', () => {
   it('조건을 맞추고 완성하면 별 셋', () => {
     app.pointerDown(...center(runwayUi.missionRect(0))) // 드레스 입히기
     app.pointerDown(...center(closetUi.itemRect(0)))
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length))) // 완성!
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS))) // 완성!
     expect(app.screen()).toBe('result')
     expect(store.runway()[MISSIONS[0]!.id]).toBe(3)
   })
 
   it('아무것도 안 입고 완성하면 별이 없지만 막지 않는다', () => {
     app.pointerDown(...center(runwayUi.missionRect(1)))
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS)))
     expect(app.screen()).toBe('result')
     expect(store.runway()[MISSIONS[1]!.id]).toBeUndefined()
   })
 
   it('결과에서 다음 미션으로 넘어간다', () => {
     app.pointerDown(...center(runwayUi.missionRect(0)))
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS)))
     app.pointerDown(...center(runwayUi.RESULT_NEXT))
     expect(app.screen()).toBe('dress')
   })
 
   it('결과에서 목록으로 돌아간다', () => {
     app.pointerDown(...center(runwayUi.missionRect(0)))
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS)))
     app.pointerDown(...center(runwayUi.RESULT_LIST))
     expect(app.screen()).toBe('list')
   })
@@ -202,10 +232,10 @@ describe('패션쇼 조작', () => {
   it('최고 기록은 깎이지 않는다', () => {
     app.pointerDown(...center(runwayUi.missionRect(0)))
     app.pointerDown(...center(closetUi.itemRect(0)))
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS)))
     app.pointerDown(...center(runwayUi.RESULT_AGAIN))
-    app.pointerDown(...center(closetUi.toolRect(1, runwayUi.RUNWAY_TOOLS.length))) // 다벗기
-    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS.length)))
+    app.pointerDown(...center(closetUi.toolRect(1, runwayUi.RUNWAY_TOOLS))) // 다벗기
+    app.pointerDown(...center(closetUi.toolRect(3, runwayUi.RUNWAY_TOOLS)))
     expect(store.runway()[MISSIONS[0]!.id]).toBe(3)
   })
 
@@ -221,11 +251,7 @@ describe('왕관 공방 조작', () => {
   let store: ReturnType<typeof createStore>
   let app: ReturnType<typeof createCrownApp>
 
-  const slotPoint = (i: number): [number, number] => {
-    const fit = cropFit(crownUi.STAGE, crownUi.HEAD_VIEW)
-    const [sx, sy] = SLOTS[i]!
-    return [fit.dx + sx * fit.k, fit.dy + (sy - 5) * fit.k]
-  }
+  const slotPoint = crownUi.slotPoint
 
   beforeEach(() => {
     store = newStore()
@@ -357,10 +383,8 @@ describe('놀이 사이 연결', () => {
     const store = newStore()
     const crown = createCrownApp(store, silentAudio)
     crown.enter()
-    const fit = cropFit(crownUi.STAGE, crownUi.HEAD_VIEW)
-    const [sx, sy] = SLOTS[0]!
     crown.pointerDown(...center(crownUi.gemRect(0)))
-    crown.pointerDown(fit.dx + sx * fit.k, fit.dy + (sy - 5) * fit.k)
+    crown.pointerDown(...crownUi.slotPoint(0))
     crown.pointerDown(...center(crownUi.SAVE_RECT))
 
     const closet = createClosetApp(store, silentAudio)
@@ -368,11 +392,15 @@ describe('놀이 사이 연결', () => {
     const crownTab = CATEGORIES.findIndex((c) => c.id === 'crown')
     closet.pointerDown(...center(closetUi.tabRect(crownTab)))
     // 공방이 이미 씌워 놨으므로 한 번 누르면 벗고, 다시 누르면 쓴다.
-    // 기본 왕관 6개 뒤 일곱 번째 칸이 내가 만든 왕관이다.
+    // 기본 왕관 6개 뒤 일곱 번째 — 둘째 페이지 첫 칸이 내가 만든 왕관이다.
     expect(store.outfit().crown).toBe('custom-crown-0')
-    closet.pointerDown(...center(closetUi.itemRect(6)))
+    const idx = itemsOf('crown').length
+    const pageOf = Math.floor(idx / closetUi.PER_PAGE)
+    for (let n = 0; n < pageOf; n++) closet.pointerDown(...center(closetUi.NEXT_RECT))
+    const cell = closetUi.itemRect(idx % closetUi.PER_PAGE)
+    closet.pointerDown(...center(cell))
     expect(store.outfit().crown).toBeUndefined()
-    closet.pointerDown(...center(closetUi.itemRect(6)))
+    closet.pointerDown(...center(cell))
     expect(store.outfit().crown).toBe('custom-crown-0')
   })
 

@@ -81,6 +81,9 @@ export function filledSlots(d: CrownDesign): number {
   return d.gems.filter(Boolean).length
 }
 
+/** 보석은 띠보다 이만큼 위에 박힌다 (인형 좌표). 공방 화면이 두드릴 자리도 같이 옮긴다 */
+export const SLOT_LIFT = 3
+
 /** 칸 위치 — 인형 좌표. 공방 화면이 두드릴 자리를 여기서 가져간다 */
 export const SLOTS: readonly (readonly [number, number])[] = Array.from(
   { length: SLOT_COUNT },
@@ -105,20 +108,22 @@ function gemShape(kind: GemKind, x: number, y: number, r: number): Shape[] {
 
 export function customCrownShapes(d: CrownDesign): Shape[] {
   const base = BASES.find((b) => b.id === d.base) ?? BASES[0]!
-  const band = `M62,58Q100,18 138,58`
+  const [x0, y0] = headArc(0)
+  const [x1, y1] = headArc(1)
+  const band = `M${x0},${y0}Q100,26 ${x1},${y1}`
   const out: Shape[] = [
-    { d: band, stroke: base.dark, lw: 9, cap: 'round' },
-    { d: band, stroke: base.metal, lw: 6, cap: 'round' },
+    { d: band, stroke: base.dark, lw: 5.4, cap: 'round' },
+    { d: band, stroke: base.metal, lw: 3.6, cap: 'round' },
   ]
   d.gems.forEach((gid, i) => {
     const [x, y] = SLOTS[i]!
     const kind = gemById(gid)
     if (!kind) {
       // 빈 칸은 금속 알갱이로 둔다. 구멍처럼 보이면 미완성으로 느껴진다
-      out.push({ d: circlePath(x, y - 2, 2.4), fill: base.dark })
+      out.push({ d: circlePath(x, y - 1, 1.4), fill: base.dark })
       return
     }
-    out.push(...gemShape(kind, x, y - 5, 5.4))
+    out.push(...gemShape(kind, x, y - SLOT_LIFT, 3.2))
   })
   return out
 }

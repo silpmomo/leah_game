@@ -24,7 +24,7 @@ import {
 } from '../runway/rules'
 import { drawParticles } from '../render/effects'
 import { backHit } from '../render/ui'
-import { PER_PAGE, STAGE, closetHit } from '../ui/closetScreen'
+import { DOLL_CENTER, PER_PAGE, closetHit } from '../ui/closetScreen'
 import {
   CONTINUE_RECT,
   RUNWAY_TOOLS,
@@ -137,7 +137,7 @@ export function createRunwayApp(store: Store, audio: Audio): GameApp {
 
     render(ctx: CanvasRenderingContext2D): void {
       if (screen === 'list') {
-        drawMissionList(ctx, store.runway(), audio.muted())
+        drawMissionList(ctx, store.runway(), audio.muted(), store.stickerCount())
         return
       }
       if (screen === 'result') {
@@ -153,6 +153,7 @@ export function createRunwayApp(store: Store, audio: Audio): GameApp {
           backdrop: store.backdrop(),
           muted: audio.muted(),
           hasNext: index + 1 < MISSIONS.length,
+          stickers: store.stickerCount(),
         })
         drawParticles(ctx, particles)
         return
@@ -171,6 +172,7 @@ export function createRunwayApp(store: Store, audio: Audio): GameApp {
         pages: pageCount(list.length, PER_PAGE),
         muted: audio.muted(),
         hint,
+        stickers: store.stickerCount(),
       })
       drawParticles(ctx, particles)
     },
@@ -231,7 +233,7 @@ export function createRunwayApp(store: Store, audio: Audio): GameApp {
             audio.play('star')
             particles = [
               ...particles,
-              ...burst(rngNext(), STAGE.x + STAGE.w / 2, STAGE.y + STAGE.h * 0.45, 12, ['star', 'sparkle']),
+              ...burst(rngNext(), DOLL_CENTER[0], DOLL_CENTER[1], 12, ['star', 'sparkle']),
             ]
           }
           break

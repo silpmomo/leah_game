@@ -5,13 +5,14 @@
  * 않는 이유는 네 살 손가락으로 정확히 끌기가 어렵기 때문이다 —
  * "고르고 두드리기" 가 훨씬 잘 통한다.
  */
-import { VIEW_H, VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
-import { circlePath, rectPath, rrectPath } from '../engine/shapes'
+import { VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
+import { circlePath, rrectPath } from '../engine/shapes'
 import { DOLL_H, DOLL_W } from '../doll/body'
 import {
   BASES,
   GEMS,
   SLOTS,
+  SLOT_LIFT,
   customCrownShapes,
   filledSlots,
   type CrownBase,
@@ -23,7 +24,9 @@ import {
   UI,
   drawButton,
   drawPanel,
+  drawSky,
   drawTopBar,
+  fillGlow,
   fillRRect,
   strokeRRect,
   text,
@@ -35,8 +38,8 @@ import {
  * y 를 0 보다 위에서 시작해 왕관 위에 여유를 둔다. 딱 맞추면 별 보석처럼
  * 위로 솟는 모양이 잘린다.
  */
-export const HEAD_VIEW: Rect = { x: 32, y: -6, w: 136, h: 138 }
-export const STAGE: Rect = { x: 18, y: 52, w: VIEW_W - 36, h: 236 }
+export const HEAD_VIEW: Rect = { x: 64, y: 14, w: 72, h: 84 }
+export const STAGE: Rect = { x: 18, y: 84, w: VIEW_W - 36, h: 206 }
 
 const GEM_X = 23
 const GEM_Y = 302
@@ -70,14 +73,26 @@ export type CrownAction =
 
 const SLOT_R = 18
 
-export function crownHit(px: number, py: number, savedCount: number): CrownAction | null {
+/** 보석 칸 i 의 화면 좌표 */
+export function slotPoint(i: number): [number, number] {
   const fit = cropFit(STAGE, HEAD_VIEW)
+  const [sx, sy] = SLOTS[i]!
+  return [fit.dx + sx * fit.k, fit.dy + (sy - SLOT_LIFT) * fit.k]
+}
+
+export function crownHit(px: number, py: number, savedCount: number): CrownAction | null {
+  // 칸 사이가 손가락보다 좁다 — 반지름 안에서 가장 가까운 칸을 고른다
+  let best = -1
+  let bestD = SLOT_R * SLOT_R
   for (let i = 0; i < SLOTS.length; i++) {
-    const [sx, sy] = SLOTS[i]!
-    const x = fit.dx + sx * fit.k
-    const y = fit.dy + (sy - 5) * fit.k
-    if ((px - x) ** 2 + (py - y) ** 2 <= SLOT_R * SLOT_R) return { kind: 'slot', index: i }
+    const [x, y] = slotPoint(i)
+    const d = (px - x) ** 2 + (py - y) ** 2
+    if (d <= bestD) {
+      best = i
+      bestD = d
+    }
   }
+  if (best >= 0) return { kind: 'slot', index: best }
   for (let i = 0; i < GEMS.length; i++) {
     if (inRect(gemRect(i), px, py)) return { kind: 'gem', index: i }
   }
@@ -103,27 +118,16 @@ export type CrownView = {
   saved: readonly CrownDesign[]
   muted: boolean
   message: string
+  stickers?: number
 }
 
 export function drawCrownScreen(ctx: CanvasRenderingContext2D, v: CrownView): void {
-  paintShape(ctx, {
-    d: rectPath(0, 0, VIEW_W, VIEW_H),
-    fill: {
-      kind: 'linear',
-      x0: 0,
-      y0: 0,
-      x1: 0,
-      y1: VIEW_H,
-      stops: [
-        [0, '#20305e'],
-        [1, '#4b4a8f'],
-      ],
-    },
-  })
+  drawSky(ctx, 'lavender')
 
   // 작업대
-  fillRRect(ctx, STAGE, 16, 'rgba(255,255,255,.1)')
-  strokeRRect(ctx, STAGE, 16, 'rgba(255,255,255,.2)', 1.4)
+  fillRRect(ctx, { ...STAGE, y: STAGE.y + 3 }, 16, UI.shadow)
+  fillRRect(ctx, STAGE, 16, UI.panelSoft)
+  strokeRRect(ctx, STAGE, 16, UI.panelLine, 1.6)
 
   // 왕관을 뺀 인형 + 지금 만드는 왕관
   const noCrown: Outfit = { ...v.outfit }
@@ -136,45 +140,45 @@ export function drawCrownScreen(ctx: CanvasRenderingContext2D, v: CrownView): vo
   )
 
   // 빈 칸 표시 — 어디를 두드려야 하는지 보여 준다
-  const fit = cropFit(STAGE, HEAD_VIEW)
   for (let i = 0; i < SLOTS.length; i++) {
     if (v.design.gems[i]) continue
-    const [sx, sy] = SLOTS[i]!
+    const [x, y] = slotPoint(i)
     paintShape(ctx, {
-      d: circlePath(fit.dx + sx * fit.k, fit.dy + (sy - 5) * fit.k, 9),
-      stroke: 'rgba(255,255,255,.75)',
+      d: circlePath(x, y, 7),
+      stroke: 'rgba(74,51,87,.6)',
       lw: 1.6,
       dash: [3, 3],
     })
   }
 
-  drawTopBar(ctx, '보석 왕관 공방', v.muted)
+  drawTopBar(ctx, '보석 왕관 공방', v.muted, {
+    tag: `보석 ${filledSlots(v.design)} / ${SLOTS.length}`,
+    tagIcon: '💎',
+    stickers: v.stickers ?? 0,
+  })
 
   // 안내 글은 얼굴 위에 겹치므로 띠를 깔고 얹는다
   fillRRect(
     ctx,
     { x: STAGE.x + 10, y: STAGE.y + STAGE.h - 28, w: STAGE.w - 20, h: 22 },
-    9,
-    'rgba(14,10,40,.66)',
+    11,
+    UI.panel,
   )
   text(ctx, v.message, VIEW_W / 2, STAGE.y + STAGE.h - 17, {
     size: 11,
     bold: true,
-    color: UI.gold,
+    color: UI.ink,
     maxW: STAGE.w - 34,
   })
-  text(ctx, `보석 ${filledSlots(v.design)} / ${SLOTS.length}`, VIEW_W - 34, STAGE.y + 16, {
-    size: 9,
-    color: UI.inkSoft,
-  })
-
   // 보석 고르기
   for (let i = 0; i < GEMS.length; i++) {
     const g = GEMS[i]!
     const r = gemRect(i)
     const on = v.gem === i && !v.eraser
-    fillRRect(ctx, r, 10, on ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.12)')
-    if (on) strokeRRect(ctx, r, 10, '#ffffff', 2.2)
+    fillRRect(ctx, { ...r, y: r.y + 2 }, 10, UI.shadow)
+    if (on) fillGlow(ctx, r, 10)
+    else fillRRect(ctx, r, 10, UI.cell)
+    strokeRRect(ctx, r, 10, UI.white, on ? 2.4 : 1.4)
     paintShape(ctx, { d: circlePath(r.x + 18, r.y + 26, 12), fill: g.color })
     paintShape(ctx, { d: circlePath(r.x + 14, r.y + 22, 3.6), fill: 'rgba(255,255,255,.8)' })
     text(ctx, g.name, r.x + 36 + (r.w - 42) / 2, r.y + 26, {
@@ -189,18 +193,19 @@ export function drawCrownScreen(ctx: CanvasRenderingContext2D, v: CrownView): vo
     const b = BASES[i]!
     const r = baseRect(i)
     const on = v.design.base === b.id
-    fillRRect(ctx, r, 10, on ? b.metal : 'rgba(255,255,255,.12)')
-    if (on) strokeRRect(ctx, r, 10, '#ffffff', 2)
+    fillRRect(ctx, { ...r, y: r.y + 2 }, 10, UI.shadow)
+    fillRRect(ctx, r, 10, on ? b.metal : UI.cell)
+    strokeRRect(ctx, r, 10, UI.white, on ? 2.4 : 1.4)
     text(ctx, b.name, r.x + r.w / 2, r.y + r.h / 2, {
       size: 11,
       bold: true,
-      color: on ? '#3c1740' : UI.ink,
+      color: UI.ink,
     })
   }
 
-  drawButton(ctx, ERASER_RECT, '🧽 지우개', { accent: v.eraser ? UI.gold : '#ffb1d1', size: 11 })
-  drawButton(ctx, CLEAR_RECT, '↺ 다지우기', { accent: UI.violet, size: 11 })
-  drawButton(ctx, SAVE_RECT, '💾 옷장에', { accent: UI.mint, size: 11 })
+  drawButton(ctx, ERASER_RECT, '🧽 지우개', { accent: v.eraser ? UI.gold : UI.pinkSoft, size: 11 })
+  drawButton(ctx, CLEAR_RECT, '↺ 다지우기', { accent: UI.lavenderSoft, size: 11 })
+  drawButton(ctx, SAVE_RECT, '💾 옷장에', { accent: UI.green, size: 11 })
 
   // 저장한 왕관들
   drawPanel(ctx, { x: 18, y: 518, w: VIEW_W - 36, h: 86 }, 12)
@@ -208,11 +213,12 @@ export function drawCrownScreen(ctx: CanvasRenderingContext2D, v: CrownView): vo
     const r = savedRect(i)
     const d = v.saved[i]
     if (!d) {
-      fillRRect(ctx, r, 10, 'rgba(255,255,255,.06)')
+      fillRRect(ctx, r, 10, 'rgba(255,255,255,.35)')
       text(ctx, '빈 자리', r.x + r.w / 2, r.y + r.h / 2, { size: 9, color: UI.inkDim })
       continue
     }
-    fillRRect(ctx, r, 10, 'rgba(255,255,255,.14)')
+    fillRRect(ctx, r, 10, UI.cell)
+    strokeRRect(ctx, r, 10, UI.white, 1.4)
     paintCrop(ctx, customCrownShapes(d), { x: r.x + 4, y: r.y + 2, w: r.w - 8, h: r.h - 20 }, {
       x: 54,
       y: 8,

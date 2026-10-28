@@ -40,7 +40,7 @@ describe('룩북', () => {
       null,
     ])
     expect(list.length).toBe(3)
-    expect(list[1]!.backdrop).toBe('ballroom')
+    expect(list[1]!.backdrop).toBe('party')
     expect(list[1]!.outfit).toEqual({})
     expect(sanitizeLooks('쓰레기')).toEqual([])
   })
@@ -65,8 +65,9 @@ describe('코디 저장값', () => {
 })
 
 describe('배경', () => {
-  it('여섯 곳이 있고 아이디가 겹치지 않는다', () => {
-    expect(BACKDROPS.length).toBe(6)
+  it('일곱 곳이 있고 아이디가 겹치지 않는다', () => {
+    expect(BACKDROPS.length).toBe(7)
+    expect(BACKDROPS[0]!.id).toBe('party')
     const ids = BACKDROPS.map((b) => b.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
@@ -85,9 +86,10 @@ describe('배경', () => {
     }
   })
 
-  it('모르는 아이디는 첫 배경으로', () => {
-    expect(backdropById('없음').id).toBe('ballroom')
-    expect(sanitizeBackdrop(123)).toBe('ballroom')
+  it('모르는 아이디는 첫 배경(옥상 파티)으로', () => {
+    expect(backdropById('없음').id).toBe('party')
+    expect(sanitizeBackdrop(123)).toBe('party')
+    expect(sanitizeBackdrop('ballroom')).toBe('ballroom')
     expect(sanitizeBackdrop('snow')).toBe('snow')
   })
 })

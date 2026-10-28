@@ -1,24 +1,39 @@
 /**
  * 게임 고르기(허브) 화면.
  *
- * 세로 화면이라 카드를 위에서 아래로 쌓는다. 오른쪽 위에는 지금 코디를
- * 입은 리아가 서 있어서, 옷장에서 갈아입힌 게 여기서도 보인다.
+ * 옥상 파티 배경이 화면 전체에 깔리고, 지금 코디를 입은 리아가 왼쪽에
+ * 크게 선다 — 옷장에서 갈아입힌 게 여기서도 보인다. 놀이 카드는 오른쪽에
+ * 세로로 쌓는다 (참고작의 오른쪽 레일 자리, docs/DESIGN.md).
  */
 import { VIEW_H, VIEW_W, inRect, type Rect } from '../engine/view'
-import { circlePath, rectPath, linear, starPath } from '../engine/shapes'
-import { DOLL_H, DOLL_W } from '../doll/body'
+import { circlePath } from '../engine/shapes'
+import type { Tints } from '../doll/tint'
 import { composeDoll, type Outfit } from '../doll/outfit'
 import type { Resolve } from '../doll/outfit'
 import { STICKER_TOTAL } from '../stickers/album'
 import { GAMES } from '../games/registry'
-import { paintInBox, paintShape } from '../render/paint'
-import { UI, drawBar, drawPanel, fillRRect, strokeRRect, text } from '../render/ui'
+import { paintShape } from '../render/paint'
+import {
+  COIN_RECT,
+  MUTE_RECT,
+  UI,
+  drawBar,
+  drawRoundButton,
+  drawTagPill,
+  fillRRect,
+  strokeRRect,
+  text,
+} from '../render/ui'
+import { DOLL_BOX as CLOSET_DOLL_BOX, drawStage } from './closetScreen'
 
-const CARD_X = 18
-const CARD_W = VIEW_W - CARD_X * 2
-const CARD_H = 74
-const CARD_GAP = 9
-const CARD_TOP = 132
+const CARD_X = 198
+const CARD_W = VIEW_W - CARD_X - 8
+const CARD_H = 80
+const CARD_GAP = 8
+const CARD_TOP = 96
+
+/** 허브의 인형 자리 — 옷장과 같은 폭이라 같은 크기로 보인다 */
+export const HUB_DOLL_BOX: Rect = { x: 0, y: 120, w: CLOSET_DOLL_BOX.w - 4, h: 450 }
 
 export function cardRect(i: number): Rect {
   return { x: CARD_X, y: CARD_TOP + i * (CARD_H + CARD_GAP), w: CARD_W, h: CARD_H }
@@ -45,45 +60,45 @@ export type HubView = {
   labels: Record<string, string>
   stickers: number
   muted: boolean
+  tints?: Tints
 }
 
+export const STICKER_BAR: Rect = { x: 12, y: VIEW_H - 52, w: VIEW_W - 24, h: 40 }
+
 export function drawHub(ctx: CanvasRenderingContext2D, v: HubView): void {
-  // 배경
-  paintShape(ctx, {
-    d: rectPath(0, 0, VIEW_W, VIEW_H),
-    fill: linear(0, 0, 0, VIEW_H, [
-      [0, '#3b1550'],
-      [0.55, '#6a2a78'],
-      [1, '#b45a95'],
-    ]),
+  drawStage(
+    ctx,
+    { x: 0, y: 0, w: VIEW_W, h: VIEW_H },
+    'party',
+    composeDoll(v.outfit, { resolve: v.resolve, expr: 'happy', tints: v.tints }),
+    0,
+    HUB_DOLL_BOX,
+  )
+
+  // 스티커 pill (옷장과 같은 자리)
+  fillRRect(ctx, { ...COIN_RECT, y: COIN_RECT.y + 2 }, 15, UI.shadow)
+  fillRRect(ctx, COIN_RECT, 15, UI.cream)
+  strokeRRect(ctx, COIN_RECT, 15, UI.creamLine, 1.6)
+  text(ctx, '🌈', COIN_RECT.x + 16, COIN_RECT.y + 16, { size: 15 })
+  text(ctx, `${v.stickers} / ${STICKER_TOTAL}`, COIN_RECT.x + 30 + (COIN_RECT.w - 36) / 2, COIN_RECT.y + 16, {
+    size: 12,
+    bold: true,
   })
-  // 반짝이는 배경 별
-  for (let i = 0; i < 22; i++) {
-    const x = (i * 71) % VIEW_W
-    const y = 8 + ((i * 53) % 118)
-    paintShape(ctx, {
-      d: starPath(x, y, i % 3 === 0 ? 3.4 : 2.2, 1),
-      fill: 'rgba(255,255,255,.5)',
-    })
-  }
 
   // 제목
-  text(ctx, '리아의', 24, 34, { size: 15, bold: true, align: 'left', color: UI.gold })
-  text(ctx, '공주 놀이', 24, 60, { size: 27, bold: true, align: 'left' })
-  text(ctx, '무엇을 하고 놀까요?', 24, 86, {
-    size: 11,
-    align: 'left',
-    color: UI.inkSoft,
+  text(ctx, '리아의 공주 놀이', VIEW_W / 2, 26, {
+    size: 22,
+    bold: true,
+    color: UI.gold,
+    stroke: UI.goldLine,
+    strokeW: 5,
   })
+  drawTagPill(ctx, VIEW_W / 2, 56, '무엇을 하고 놀까요?', '👑', 140)
 
-  // 지금 코디를 입은 리아
-  paintShape(ctx, { d: circlePath(300, 66, 52), fill: 'rgba(255,255,255,.12)' })
-  paintInBox(
-    ctx,
-    composeDoll(v.outfit, { resolve: v.resolve, expr: 'happy' }),
-    { x: 256, y: 8, w: 92, h: 112 },
-    { w: DOLL_W, h: DOLL_H },
-  )
+  drawRoundButton(ctx, MUTE_RECT.x + MUTE_RECT.w / 2, MUTE_RECT.y + MUTE_RECT.h / 2, 17, v.muted ? '🔇' : '🔊', {
+    accent: 'rgba(255,255,255,.7)',
+    iconSize: 15,
+  })
 
   // 카드
   for (let i = 0; i < GAMES.length; i++) {
@@ -91,56 +106,52 @@ export function drawHub(ctx: CanvasRenderingContext2D, v: HubView): void {
     const r = cardRect(i)
     const ready = g.status === 'ready'
 
-    fillRRect(ctx, { ...r, y: r.y + 3 }, 16, 'rgba(0,0,0,.2)')
-    fillRRect(ctx, r, 16, ready ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.06)')
-    strokeRRect(ctx, r, 16, ready ? g.accent : 'rgba(255,255,255,.14)', 2)
+    fillRRect(ctx, { ...r, y: r.y + 3 }, 16, UI.shadow)
+    fillRRect(ctx, r, 16, ready ? UI.panel : 'rgba(255,255,255,.5)')
+    strokeRRect(ctx, r, 16, ready ? g.accent : UI.panelLine, 2.2)
 
-    // 왼쪽 아이콘
+    // 왼쪽 원형 아이콘
     paintShape(ctx, {
-      d: circlePath(r.x + 36, r.y + r.h / 2, 24),
-      fill: ready ? g.accent : 'rgba(255,255,255,.12)',
+      d: circlePath(r.x + 26, r.y + r.h / 2, 20),
+      fill: ready ? g.accent : UI.lavenderSoft,
     })
-    text(ctx, g.emoji, r.x + 36, r.y + r.h / 2 + 1, { size: 24 })
+    paintShape(ctx, { d: circlePath(r.x + 26, r.y + r.h / 2, 20), stroke: UI.white, lw: 2 })
+    text(ctx, g.emoji, r.x + 26, r.y + r.h / 2 + 1, { size: 20 })
 
-    text(ctx, g.title, r.x + 70, r.y + 24, {
-      size: 16,
+    text(ctx, g.title, r.x + 52, r.y + 26, {
+      size: 14,
       bold: true,
       align: 'left',
       color: ready ? UI.ink : UI.inkDim,
-      maxW: r.w - 96,
+      maxW: r.w - 60,
     })
-    text(ctx, g.subtitle, r.x + 70, r.y + 43, {
-      size: 10,
-      align: 'left',
-      color: ready ? UI.inkSoft : UI.inkDim,
-      maxW: r.w - 96,
-    })
-    text(ctx, v.labels[g.id] ?? '', r.x + 70, r.y + 60, {
-      size: 10,
+    text(ctx, v.labels[g.id] ?? '', r.x + 52, r.y + 48, {
+      size: 8.5,
       bold: true,
       align: 'left',
-      color: ready ? g.accent : UI.inkDim,
-      maxW: r.w - 96,
-    })
-
-    text(ctx, ready ? '▶' : '🔒', r.x + r.w - 20, r.y + r.h / 2, {
-      size: 14,
       color: ready ? UI.inkSoft : UI.inkDim,
+      maxW: r.w - 60,
+    })
+    text(ctx, ready ? '▶' : '🔒', r.x + r.w - 14, r.y + r.h - 14, {
+      size: 10,
+      color: ready ? g.accent : UI.inkDim,
     })
   }
 
   // 스티커 진행도
-  const bar: Rect = { x: CARD_X, y: VIEW_H - 46, w: CARD_W, h: 34 }
-  drawPanel(ctx, bar, 12)
-  text(ctx, '🌈', bar.x + 20, bar.y + 17, { size: 15 })
-  text(ctx, `스티커 ${v.stickers} / ${STICKER_TOTAL}`, bar.x + 82, bar.y + 17, {
+  const bar = STICKER_BAR
+  fillRRect(ctx, { ...bar, y: bar.y + 3 }, 20, UI.shadow)
+  fillRRect(ctx, bar, 20, UI.panel)
+  strokeRRect(ctx, bar, 20, UI.panelLine, 1.4)
+  text(ctx, '🌈', bar.x + 22, bar.y + 20, { size: 15 })
+  text(ctx, `스티커 ${v.stickers} / ${STICKER_TOTAL}`, bar.x + 40, bar.y + 20, {
     size: 11,
     bold: true,
     align: 'left',
   })
   drawBar(
     ctx,
-    { x: bar.x + 168, y: bar.y + 12, w: bar.w - 186, h: 10 },
+    { x: bar.x + 150, y: bar.y + 15, w: bar.w - 166, h: 10 },
     v.stickers / STICKER_TOTAL,
     UI.gold,
   )
