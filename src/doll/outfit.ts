@@ -7,18 +7,15 @@
 import type { Shape } from '../engine/shapes'
 import type { Rng } from '../engine/rng'
 import {
-  armShapes,
-  baseHairBack,
-  baseHairFront,
+  BASE_HAIR,
   baseOutfitShapes,
-  baseShoeShapes,
-  baseSleeveShapes,
   bodyShapes,
   faceShapes,
+  hairLayers,
   type Expression,
 } from './body'
 import { CATEGORIES, type Category, type ColorTag, type Item, type ThemeTag } from './kinds'
-import { tintFor, type Tints } from './tint'
+import { hairShade, tintFor, type Tints } from './tint'
 import { itemById, itemsOf } from './wardrobe'
 
 export type Outfit = Partial<Record<Category, string>>
@@ -100,6 +97,12 @@ export function randomOutfit(rng: Rng, extra: readonly Item[] = []): Outfit {
   return out
 }
 
+/** 아이템 한 벌의 조각 (색 견본 반영). 옷장 썸네일이 쓴다 */
+export function itemShapes(item: Item, tints?: Tints): { back: readonly Shape[]; front: readonly Shape[] } {
+  if (item.hair) return hairLayers(item.hair, hairShade(tints))
+  return { back: tintFor(item.cat, tints, item.back ?? []), front: tintFor(item.cat, tints, item.front) }
+}
+
 export type ComposeOpts = {
   expr?: Expression
   resolve?: Resolve
@@ -112,7 +115,7 @@ export type ComposeOpts = {
 /**
  * 인형 한 벌을 그릴 조각 목록.
  *
- * 순서가 곧 앞뒤다. 이 순서를 바꾸면 손이 치마 뒤로 숨거나 왕관이 머리에
+ * 순서가 곧 앞뒤다. 이 순서를 바꾸면 뒷머리가 얼굴을 덮거나 왕관이 머리에
  * 파묻힌다. 아래 주석의 층 번호는 문서(docs/DOLL.md)와 같은 번호다.
  */
 export function composeDoll(outfit: Outfit, opts: ComposeOpts = {}): Shape[] {
@@ -123,41 +126,37 @@ export function composeDoll(outfit: Outfit, opts: ComposeOpts = {}): Shape[] {
   const cape = get('cape')
   const wings = get('wings')
   const dress = get('dress')
-  const shoes = get('shoes')
-  const gloves = get('gloves')
+  const t = opts.tints
 
   /**
    * 드레스를 입으면 기본 옷은 감춘다.
    *
-   * 겹쳐 두면 인어 드레스·바지옷처럼 폭이 좁은 옷 옆으로 라벤더 치마가
-   * 삐져나온다. 기본 옷은 "아무것도 안 입혔을 때의 리아" 이고,
-   * 드레스는 그걸 갈아입는 것이다. 악세사리는 전부 그 위에 얹힌다.
+   * 겹쳐 두면 인어 꼬리 옆으로 분홍 치마가 삐져나온다. 기본 옷은 "아무것도
+   * 안 입혔을 때의 리아" 이고, 드레스는 그걸 갈아입는 것이다.
    */
   const baseWear = dress ? [] : baseOutfitShapes()
-  const t = opts.tints
-  // 색 견본은 아이템 조각에만 입힌다. 몸·얼굴·기본 옷은 그대로다
-  const dressFront = tintFor('dress', t, dress?.front ?? [])
-  const sleeves = dress ? tintFor('dress', t, dress.sleeves ?? []) : baseSleeveShapes()
-  const hairBack = hair ? tintFor('hair', t, hair.back ?? []) : baseHairBack()
-  const hairFront = hair ? tintFor('hair', t, hair.front) : baseHairFront()
+
+  // 팩 머리(와 기본 머리)는 색 그림을 바꿔 끼우고, 나머지 머리는 색조를 돌린다
+  const shade = hairShade(t)
+  const packHair = hair ? hair.hair : BASE_HAIR
+  const hairParts = packHair
+    ? hairLayers(packHair, shade)
+    : { back: tintFor('hair', t, hair?.back ?? []), front: tintFor('hair', t, hair?.front ?? []) }
 
   return [
     ...(wings?.back ?? []), // 10 날개
     ...tintFor('cape', t, cape?.back ?? []), // 20 망토 천
-    ...hairBack, // 25 뒷머리
+    ...hairParts.back, // 25 뒷머리
     ...bodyShapes(), // 30 몸
     ...(opts.face === false ? [] : faceShapes(opts.expr ?? 'smile')), // 34 얼굴
     ...baseWear, // 38 기본 옷 (드레스가 없을 때)
-    ...dressFront, // 42 드레스
-    ...baseShoeShapes(), // 46 기본 신발
-    ...tintFor('shoes', t, shoes?.front ?? []),
-    ...armShapes(), // 50 팔
-    ...sleeves, // 54 소매
-    ...(gloves?.sleeves ?? []), // 58 장갑
-    ...hairFront, // 62 앞머리
+    ...tintFor('dress', t, dress?.front ?? []), // 42 드레스
+    ...tintFor('shoes', t, get('shoes')?.front ?? []), // 46 구두
+    ...(get('gloves')?.front ?? []), // 58 장갑·팔찌
+    ...(get('necklace')?.front ?? []), // 60 목걸이
+    ...hairParts.front, // 62 윗머리·앞머리
     ...tintFor('cape', t, cape?.front ?? []), // 64 망토 깃
     ...(get('earrings')?.front ?? []), // 66 귀걸이
-    ...(get('necklace')?.front ?? []), // 68 목걸이
     ...(get('crown')?.front ?? []), // 72 왕관
     ...(get('wand')?.front ?? []), // 76 소품
   ]

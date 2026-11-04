@@ -152,7 +152,9 @@ describe('옷장', () => {
   it('색 견본이 인형과 옷 칸 사이에 들어가고 옷 칸·레일과 안 겹친다', () => {
     for (const cat of TINTABLE) {
       const n = SWATCHES[cat]!.length
-      expect(n).toBe(6)
+      // 머리는 팩에 그려진 일곱 색, 나머지는 여섯 색
+      expect(n).toBeGreaterThanOrEqual(6)
+      expect(n).toBeLessThanOrEqual(7)
       expect(inScreen(swatchPillRect(n))).toBe(true)
       for (let i = 0; i <= n; i++) {
         const r = swatchRect(i)

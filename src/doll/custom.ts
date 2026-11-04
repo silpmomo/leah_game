@@ -15,6 +15,7 @@ import {
   type Shape,
 } from '../engine/shapes'
 import { headArc } from './builders'
+import { XF, placed } from './fit'
 import type { Item } from './kinds'
 import { THUMB_VIEW } from './wardrobe'
 
@@ -125,7 +126,8 @@ export function customCrownShapes(d: CrownDesign): Shape[] {
     }
     out.push(...gemShape(kind, x, y - SLOT_LIFT, 3.2))
   })
-  return out
+  // 벡터 틀로 그리고 치비 머리 위로 옮긴다 (옷장 왕관과 같은 XF)
+  return placed(out, XF.crown)
 }
 
 /** 옷장에 들어갈 아이템으로 바꾼다 */

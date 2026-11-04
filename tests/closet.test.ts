@@ -11,7 +11,7 @@ import {
 } from '../src/closet/state'
 import { BACKDROPS, backdropById } from '../src/doll/backdrop'
 
-const look = { outfit: { dress: 'dress-star-blue' }, backdrop: 'garden' as const }
+const look = { outfit: { dress: 'dress-night-blue' }, backdrop: 'garden' as const }
 
 describe('룩북', () => {
   it('새 사진이 맨 앞에 온다', () => {
@@ -35,7 +35,7 @@ describe('룩북', () => {
 
   it('깨진 저장값을 걸러낸다', () => {
     const list = sanitizeLooks([
-      { outfit: { dress: 'dress-star-blue' }, backdrop: 'garden' },
+      { outfit: { dress: 'dress-night-blue' }, backdrop: 'garden' },
       { outfit: 'x', backdrop: '없는배경' },
       null,
     ])
@@ -48,15 +48,15 @@ describe('룩북', () => {
 
 describe('코디 저장값', () => {
   it('없는 옷은 버린다', () => {
-    const o = sanitizeOutfit({ dress: 'dress-star-blue', crown: '없는왕관', hair: 42 })
-    expect(o.dress).toBe('dress-star-blue')
+    const o = sanitizeOutfit({ dress: 'dress-night-blue', crown: '없는왕관', hair: 42 })
+    expect(o.dress).toBe('dress-night-blue')
     expect(o.crown).toBeUndefined()
     expect(o.hair).toBeUndefined()
   })
 
   it('칸과 분류가 어긋나면 버린다', () => {
     // 왕관 칸에 드레스 아이디가 들어 있는 경우
-    expect(sanitizeOutfit({ crown: 'dress-star-blue' }).crown).toBeUndefined()
+    expect(sanitizeOutfit({ crown: 'dress-night-blue' }).crown).toBeUndefined()
   })
 
   it('내가 만든 왕관은 남긴다', () => {

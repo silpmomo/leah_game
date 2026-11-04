@@ -7,6 +7,8 @@
 import { VIEW_H, VIEW_W } from './engine/view'
 import { ITEMS } from './doll/wardrobe'
 import { assertValidWardrobe } from './doll/schema'
+import { composeDoll } from './doll/outfit'
+import { preloadArt } from './render/images'
 import { createAudio } from './core/audio'
 import { createLoop } from './core/loop'
 import { GAMES, firstReadyGame } from './games/registry'
@@ -36,6 +38,20 @@ try {
   document.body.textContent = e instanceof Error ? e.message : String(e)
   throw e
 }
+
+/**
+ * 인형 그림을 미리 불러 둔다 — 맨 인형(얼굴 표정 전부)과 옷장 아이템들.
+ * 머리 색 그림(7색 x 머리 12개)은 견본을 누를 때 불러도 충분하다.
+ */
+preloadArt(
+  [
+    ...composeDoll({}),
+    ...composeDoll({}, { expr: 'happy' }),
+    ...composeDoll({}, { expr: 'sparkle' }),
+    ...composeDoll({}, { expr: 'surprise' }),
+    ...ITEMS.flatMap((i) => [...(i.back ?? []), ...i.front]),
+  ].flatMap((s) => (s.img ? [s.img.name] : [])),
+)
 
 const store = createStore()
 const audio = createAudio()

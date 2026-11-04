@@ -73,8 +73,8 @@ describe('색조 돌리기', () => {
 })
 
 describe('색 견본', () => {
-  it('바꿀 수 있는 분류마다 여섯 색이 있다', () => {
-    for (const cat of TINTABLE) expect(SWATCHES[cat]!.length).toBe(6)
+  it('바꿀 수 있는 분류마다 여섯 색이 있다 (머리는 팩의 일곱 색)', () => {
+    for (const cat of TINTABLE) expect(SWATCHES[cat]!.length).toBe(cat === 'hair' ? 7 : 6)
     expect(swatchColor('dress', 0)).toBeNull()
     expect(swatchColor('dress', 1)).toBe(SWATCHES.dress![0])
     expect(swatchColor('dress', 99)).toBeNull()
@@ -102,7 +102,8 @@ describe('색 견본', () => {
     let changed = 0
     for (let i = 0; i < plain.length; i++) {
       expect(tinted[i]!.d).toBe(plain[i]!.d)
-      if (JSON.stringify(tinted[i]!.fill) !== JSON.stringify(plain[i]!.fill)) changed += 1
+      expect(tinted[i]!.img?.name).toBe(plain[i]!.img?.name)
+      if (tinted[i]!.img?.tint !== plain[i]!.img?.tint) changed += 1
     }
     expect(changed).toBeGreaterThan(0)
     expect(changed).toBeLessThan(plain.length / 2)

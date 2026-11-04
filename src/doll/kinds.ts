@@ -7,6 +7,7 @@
  */
 import type { Rect } from '../engine/view'
 import type { Shape } from '../engine/shapes'
+import type { HairStyle } from './body'
 
 export type Category =
   | 'dress'
@@ -51,16 +52,16 @@ export type Item = {
   name: string
   color: ColorTag
   theme?: ThemeTag
-  /** 몸보다 뒤에 그리는 조각 (망토 천, 긴 머리 뒷부분, 날개) */
+  /** 몸보다 뒤에 그리는 조각 (망토 천, 뒷머리, 날개) */
   back?: readonly Shape[]
   /** 몸보다 앞에 그리는 조각 */
   front: readonly Shape[]
-  /** 팔보다 앞에 그리는 조각 (드레스 소매·장갑) */
-  sleeves?: readonly Shape[]
   /** 썸네일에서 잘라 보여줄 인형 좌표 영역 */
   thumb: Rect
   /** 왕관 공방에서 만든 왕관처럼 플레이어가 만든 아이템 */
   custom?: boolean
+  /** 팩 머리 — 색 견본을 고르면 팩의 같은 머리 다른 색 그림으로 바꿔 끼운다 */
+  hair?: HairStyle
 }
 
 export const CATEGORIES: readonly {

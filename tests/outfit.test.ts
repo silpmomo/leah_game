@@ -13,8 +13,12 @@ import {
 } from '../src/doll/outfit'
 import { itemById, itemsOf } from '../src/doll/wardrobe'
 import { baseOutfitShapes, baseHairFront } from '../src/doll/body'
+import type { Shape } from '../src/engine/shapes'
 
-const dress = itemById('dress-star-blue')!
+/** 조각 비교 열쇠 — 그림 조각은 이름, 벡터 조각은 경로 */
+const key = (s: Shape): string => s.img?.name ?? s.d
+
+const dress = itemById('dress-night-blue')!
 const crown = itemById('crown-gold-royal')!
 
 describe('코디', () => {
@@ -76,42 +80,42 @@ describe('인형 조립', () => {
   it('아무것도 안 입으면 기본 옷이 보인다', () => {
     const shapes = composeDoll({})
     const base = baseOutfitShapes()
-    expect(shapes.some((s) => s.d === base[0]!.d)).toBe(true)
+    expect(shapes.some((s) => key(s) === key(base[0]!))).toBe(true)
   })
 
   it('드레스를 입으면 기본 치마가 사라진다', () => {
     const shapes = composeDoll({ dress: dress.id })
     const base = baseOutfitShapes()
-    expect(shapes.some((s) => s.d === base[0]!.d)).toBe(false)
+    expect(shapes.some((s) => key(s) === key(base[0]!))).toBe(false)
     // 드레스 조각은 들어 있다
-    expect(shapes.some((s) => s.d === dress.front[0]!.d)).toBe(true)
+    expect(shapes.some((s) => key(s) === key(dress.front[0]!))).toBe(true)
   })
 
   it('머리 아이템이 없으면 기본 앞머리를 쓴다', () => {
     const shapes = composeDoll({})
-    expect(shapes.some((s) => s.d === baseHairFront()[0]!.d)).toBe(true)
+    expect(shapes.some((s) => key(s) === key(baseHairFront()[0]!))).toBe(true)
   })
 
   it('머리 아이템을 쓰면 기본 앞머리를 안 쓴다', () => {
-    const hair = itemById('hair-twin-brown')!
+    const hair = itemById('hair-pony')!
     const shapes = composeDoll({ hair: hair.id })
-    expect(shapes.some((s) => s.d === baseHairFront()[0]!.d)).toBe(false)
+    expect(shapes.some((s) => key(s) === key(baseHairFront()[0]!))).toBe(false)
   })
 
   it('층 순서 — 날개는 몸보다 앞에 오지 않는다', () => {
     const wings = itemById('wing-fairy-pink')!
     const shapes = composeDoll({ wings: wings.id, dress: dress.id })
-    const wingAt = shapes.findIndex((s) => s.d === wings.back![0]!.d)
-    const dressAt = shapes.findIndex((s) => s.d === dress.front[0]!.d)
+    const wingAt = shapes.findIndex((s) => key(s) === key(wings.back![0]!))
+    const dressAt = shapes.findIndex((s) => key(s) === key(dress.front[0]!))
     expect(wingAt).toBeGreaterThanOrEqual(0)
     expect(wingAt).toBeLessThan(dressAt)
   })
 
   it('왕관은 머리보다 뒤에(위에) 그린다', () => {
-    const hair = itemById('hair-long-brown')!
+    const hair = itemById('hair-wave')!
     const shapes = composeDoll({ hair: hair.id, crown: crown.id })
-    const hairAt = shapes.findIndex((s) => s.d === hair.front[0]!.d)
-    const crownAt = shapes.findIndex((s) => s.d === crown.front[0]!.d)
+    const hairAt = shapes.findIndex((s) => key(s) === key(hair.front[0]!))
+    const crownAt = shapes.findIndex((s) => key(s) === key(crown.front[0]!))
     expect(crownAt).toBeGreaterThan(hairAt)
   })
 
@@ -133,7 +137,7 @@ describe('인형 조립', () => {
     }
     expect(wornCount(full)).toBe(10)
     const shapes = composeDoll(full)
-    expect(shapes.length).toBeGreaterThan(40)
-    for (const s of shapes) expect(s.d.length).toBeGreaterThan(0)
+    expect(shapes.length).toBeGreaterThan(20)
+    for (const s of shapes) expect(s.img !== undefined || s.d.length > 0).toBe(true)
   })
 })

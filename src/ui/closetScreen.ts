@@ -9,11 +9,12 @@
  */
 import { VIEW_H, VIEW_W, gridRect, inRect, type Rect } from '../engine/view'
 import { circlePath, rectPath, rrectPath, starPath, type Shape } from '../engine/shapes'
-import { DOLL_H, DOLL_W, armShapes, bodyShapes, type Expression } from '../doll/body'
+import { DOLL_H, DOLL_W, bodyShapes, type Expression } from '../doll/body'
+import { tintShapes } from '../engine/color'
 import { backdropById, type BackdropId } from '../doll/backdrop'
 import { BACKDROPS } from '../doll/backdrop'
 import { CATEGORIES, type Category, type Item } from '../doll/kinds'
-import { composeDoll, type Outfit, type Resolve } from '../doll/outfit'
+import { composeDoll, itemShapes, type Outfit, type Resolve } from '../doll/outfit'
 import { SWATCHES, isTintable, swatchCount, tintFor, type Tints } from '../doll/tint'
 import type { Look } from '../closet/state'
 import { paintCrop, paintInBox, paintShape } from '../render/paint'
@@ -265,11 +266,7 @@ export function drawTabs(ctx: CanvasRenderingContext2D, current: Category, outfi
 }
 
 /** 회색 마네킹 — 옷 칸 썸네일 뒤에 깔린다. 참고작처럼 "옷만" 보이게 */
-const MANNEQUIN: readonly Shape[] = [...bodyShapes(), ...armShapes()].map((s) => ({
-  d: s.d,
-  ...(s.fill ? { fill: '#cfc6da' } : {}),
-  ...(s.stroke ? { stroke: '#cfc6da', lw: s.lw, cap: s.cap } : {}),
-}))
+const MANNEQUIN: readonly Shape[] = tintShapes(bodyShapes(), '#cfc6da')
 
 /** 옷 세로 목록 */
 export function drawItemGrid(
@@ -293,12 +290,10 @@ export function drawItemGrid(
     else fillRRect(ctx, r, 10, UI.cell)
     strokeRRect(ctx, r, 10, on ? UI.white : UI.cellLine, on ? 2.4 : 1.4)
 
-    const back = tintFor(item.cat, tints, item.back ?? [])
-    const front = tintFor(item.cat, tints, item.front)
-    const sleeves = tintFor(item.cat, tints, item.sleeves ?? [])
+    const { back, front } = itemShapes(item, tints)
     paintCrop(
       ctx,
-      [...back, ...MANNEQUIN, ...front, ...sleeves],
+      [...back, ...MANNEQUIN, ...front],
       { x: r.x + 3, y: r.y + 2, w: r.w - 6, h: r.h - 14 },
       item.thumb,
     )

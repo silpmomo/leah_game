@@ -113,7 +113,7 @@ describe('미션 데이터', () => {
 })
 
 describe('조건 판정', () => {
-  const blue = itemById('dress-star-blue')!
+  const blue = itemById('dress-night-blue')!
 
   it('cat 조건은 그 칸이 차 있으면 참', () => {
     expect(meets({ kind: 'cat', cat: 'dress' }, {})).toBe(false)

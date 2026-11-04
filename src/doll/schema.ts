@@ -7,6 +7,7 @@
  */
 import { COLOR_NAME, THEME_NAME, CATEGORIES, type Item } from './kinds'
 import { DOLL_H, DOLL_W } from './body'
+import { isArtName } from './art'
 
 function fail(msg: string): never {
   throw new Error(`옷장 데이터 오류: ${msg}`)
@@ -26,9 +27,13 @@ export function assertValidWardrobe(items: readonly Item[]): void {
     if (!(it.color in COLOR_NAME)) fail(`${it.id}: 모르는 색 ${it.color}`)
     if (it.theme && !(it.theme in THEME_NAME)) fail(`${it.id}: 모르는 테마 ${it.theme}`)
 
-    const pieces = [...(it.back ?? []), ...it.front, ...(it.sleeves ?? [])]
+    const pieces = [...(it.back ?? []), ...it.front]
     if (pieces.length === 0) fail(`${it.id}: 그릴 조각이 하나도 없다`)
     for (const s of pieces) {
+      if (s.img) {
+        if (!isArtName(s.img.name)) fail(`${it.id}: 모르는 그림 ${s.img.name}`)
+        continue
+      }
       if (!s.d) fail(`${it.id}: 경로가 빈 조각이 있다`)
       if (!s.fill && !s.stroke) fail(`${it.id}: 칠도 선도 없는 조각이 있다`)
       if (s.stroke && !s.lw) fail(`${it.id}: 선 두께가 없는 조각이 있다`)
@@ -36,7 +41,8 @@ export function assertValidWardrobe(items: readonly Item[]): void {
 
     const t = it.thumb
     if (t.w <= 0 || t.h <= 0) fail(`${it.id}: 썸네일 영역이 비었다`)
-    if (t.x < -20 || t.y < -20 || t.x + t.w > DOLL_W + 20 || t.y + t.h > DOLL_H + 20) {
+    // 날개·서핑보드처럼 인형 밖으로 삐져나오는 소품이 있어 여유를 둔다
+    if (t.x < -60 || t.y < -80 || t.x + t.w > DOLL_W + 60 || t.y + t.h > DOLL_H + 40) {
       fail(`${it.id}: 썸네일 영역이 인형 밖이다`)
     }
   }

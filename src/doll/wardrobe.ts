@@ -1,50 +1,38 @@
 /**
  * 옷장 — 아이템 표.
  *
- * 그림은 builders.ts 가 만든다. 이 파일은 "무엇이 있는가" 만 적는다.
- * 디즈니 공주풍이되 이름은 우리가 붙였다 (별빛·장미·바다·눈꽃…).
+ * 옷·머리·구두·목걸이·장갑·망토·귀걸이는 일러스트 조각(art.ts)을 겹친다.
+ * 왕관·날개·지팡이는 팩에 공주풍 그림이 모자라 벡터(builders.ts)로 그리고
+ * fit.ts 의 XF 로 인형 머리·등·손에 옮긴다. 팩 그림 장식(화관·토끼 귀·
+ * 요정 날개…)도 같은 분류에 섞는다.
+ *
+ * 같은 그림에 색만 입힌 옷(tint)도 따로 한 벌로 센다. 팩 드레스가 적어서
+ * 공주 드레스 색을 늘리는 방법이다.
  *
  * 새 옷을 넣으려면 이 표에 한 줄 추가하면 된다. 아이디는 절대 바꾸지 않는다 —
  * 저장된 코디와 룩북이 아이디로 옷을 기억하기 때문이다.
  */
 import type { Rect } from '../engine/view'
+import type { Shape } from '../engine/shapes'
+import { art, artBounds, type ArtName } from './art'
+import { hairLayers, type HairStyle } from './body'
 import {
-  buildCape,
   buildCrown,
-  buildDress,
-  buildEarrings,
-  buildGloves,
-  buildHair,
-  buildNecklace,
-  buildShoes,
   buildWand,
   buildWings,
-  type CapeSpec,
   type CrownSpec,
-  type DressSpec,
-  type EarringSpec,
-  type GloveSpec,
-  type HairSpec,
-  type NecklaceSpec,
-  type ShoeSpec,
   type WandSpec,
   type WingSpec,
 } from './builders'
+import { XF, placed, xfRect } from './fit'
 import type { Category, ColorTag, Item, ThemeTag } from './kinds'
 
-/** 썸네일에서 잘라 보여줄 영역 (인형 좌표) */
-export const THUMB_VIEW: Record<Category, Rect> = {
-  dress: { x: 4, y: 96, w: 192, h: 322 },
-  hair: { x: 46, y: 18, w: 108, h: 212 },
-  crown: { x: 72, y: 12, w: 56, h: 42 },
-  shoes: { x: 78, y: 370, w: 44, h: 50 },
-  necklace: { x: 84, y: 96, w: 32, h: 30 },
-  gloves: { x: 54, y: 150, w: 92, h: 88 },
-  cape: { x: 0, y: 96, w: 200, h: 324 },
-  wings: { x: 0, y: 40, w: 200, h: 240 },
-  earrings: { x: 72, y: 56, w: 56, h: 30 },
-  wand: { x: 108, y: 166, w: 56, h: 86 },
-}
+/** 벡터 소품의 썸네일 영역 (벡터 틀 좌표를 XF 로 옮긴 값) */
+export const THUMB_VIEW = {
+  crown: xfRect(XF.crown, { x: 72, y: 12, w: 56, h: 42 }),
+  wings: xfRect(XF.wings, { x: 0, y: 40, w: 200, h: 240 }),
+  wand: xfRect(XF.wand, { x: 108, y: 166, w: 56, h: 86 }),
+} as const satisfies Partial<Record<Category, Rect>>
 
 type Row = {
   id: string
@@ -53,223 +41,104 @@ type Row = {
   theme?: ThemeTag
 }
 
-function dress(row: Row, spec: DressSpec): Item {
-  const { front, sleeves } = buildDress(spec)
-  return { ...row, cat: 'dress', front, sleeves, thumb: THUMB_VIEW.dress }
+/** 조각 이름, 또는 [조각 이름, 입힐 색] */
+type Layer = ArtName | readonly [ArtName, string]
+
+function layer(l: Layer): Shape {
+  return typeof l === 'string' ? art(l) : art(l[0], l[1])
 }
 
-function hair(row: Row, spec: HairSpec): Item {
-  const { back, front } = buildHair(spec)
-  return { ...row, cat: 'hair', back, front, thumb: THUMB_VIEW.hair }
+function nameOf(l: Layer): ArtName {
+  return typeof l === 'string' ? l : l[0]
+}
+
+/** 일러스트 아이템. front 는 몸 앞, back 은 몸 뒤 */
+function pic(cat: Category, row: Row, front: readonly Layer[], back: readonly Layer[] = []): Item {
+  const all = [...back, ...front].map(nameOf)
+  return {
+    ...row,
+    cat,
+    front: front.map(layer),
+    ...(back.length ? { back: back.map(layer) } : {}),
+    thumb: artBounds(all),
+  }
+}
+
+function hair(row: Row, h: HairStyle): Item {
+  const { back, front } = hairLayers(h)
+  const names = [`hair${h.style}`, `hair${h.style}-back`, ...(h.bangs ? [`bangs${h.bangs}`] : [])]
+  return { ...row, cat: 'hair', back, front, hair: h, thumb: artBounds(names as ArtName[], 4) }
 }
 
 function crown(row: Row, spec: CrownSpec): Item {
-  return { ...row, cat: 'crown', front: buildCrown(spec), thumb: THUMB_VIEW.crown }
-}
-
-function shoes(row: Row, spec: ShoeSpec): Item {
-  return { ...row, cat: 'shoes', front: buildShoes(spec), thumb: THUMB_VIEW.shoes }
-}
-
-function necklace(row: Row, spec: NecklaceSpec): Item {
-  return { ...row, cat: 'necklace', front: buildNecklace(spec), thumb: THUMB_VIEW.necklace }
-}
-
-function gloves(row: Row, spec: GloveSpec): Item {
-  return { ...row, cat: 'gloves', front: [], sleeves: buildGloves(spec), thumb: THUMB_VIEW.gloves }
-}
-
-function cape(row: Row, spec: CapeSpec): Item {
-  const { back, front } = buildCape(spec)
-  return { ...row, cat: 'cape', back, front, thumb: THUMB_VIEW.cape }
+  return { ...row, cat: 'crown', front: placed(buildCrown(spec), XF.crown), thumb: THUMB_VIEW.crown }
 }
 
 function wings(row: Row, spec: WingSpec): Item {
-  return { ...row, cat: 'wings', back: buildWings(spec), front: [], thumb: THUMB_VIEW.wings }
-}
-
-function earrings(row: Row, spec: EarringSpec): Item {
-  return { ...row, cat: 'earrings', front: buildEarrings(spec), thumb: THUMB_VIEW.earrings }
+  return { ...row, cat: 'wings', back: placed(buildWings(spec), XF.wings), front: [], thumb: THUMB_VIEW.wings }
 }
 
 function wand(row: Row, spec: WandSpec): Item {
-  return { ...row, cat: 'wand', front: buildWand(spec), thumb: THUMB_VIEW.wand }
+  return { ...row, cat: 'wand', front: placed(buildWand(spec), XF.wand), thumb: THUMB_VIEW.wand }
 }
 
-// ── 드레스 12 ──────────────────────────────────────────────────
+const dress = (row: Row, front: readonly Layer[]): Item => pic('dress', row, front)
+const shoes = (row: Row, front: readonly Layer[]): Item => pic('shoes', row, front)
+const necklace = (row: Row, front: readonly Layer[]): Item => pic('necklace', row, front)
+const gloves = (row: Row, front: readonly Layer[]): Item => pic('gloves', row, front)
+const earrings = (row: Row, front: readonly Layer[]): Item => pic('earrings', row, front)
+
+// ── 드레스 20 ──────────────────────────────────────────────────
 
 const DRESSES: Item[] = [
-  dress(
-    { id: 'dress-star-blue', name: '별빛 파랑 드레스', color: 'blue', theme: 'star' },
-    {
-      silhouette: 'ballgown',
-      main: '#8dc0f5',
-      dark: '#4a83c8',
-      trim: '#eaf4ff',
-      neckline: 'puff',
-      deco: 'sparkle',
-      decoColor: '#ffffff',
-    },
-  ),
-  dress(
-    { id: 'dress-rose-gold', name: '황금 장미 드레스', color: 'gold', theme: 'rose' },
-    {
-      silhouette: 'ballgown',
-      main: '#f3ca5f',
-      dark: '#d29a25',
-      trim: '#fff3c4',
-      neckline: 'off',
-      deco: 'rose',
-      decoColor: '#f2748f',
-    },
-  ),
-  dress(
-    { id: 'dress-sea-teal', name: '바다빛 조개 드레스', color: 'teal', theme: 'sea' },
-    {
-      silhouette: 'mermaid',
-      main: '#57c9c4',
-      dark: '#2a8f96',
-      trim: '#bff4ef',
-      neckline: 'strap',
-      deco: 'shell',
-      decoColor: '#ffd9e6',
-    },
-  ),
-  dress(
-    { id: 'dress-snow-ice', name: '눈꽃 얼음 드레스', color: 'blue', theme: 'snow' },
-    {
-      silhouette: 'gown',
-      main: '#b6dffc',
-      dark: '#79b2da',
-      trim: '#ffffff',
-      neckline: 'long',
-      deco: 'snow',
-      decoColor: '#ffffff',
-    },
-  ),
-  dress(
-    { id: 'dress-dawn-pink', name: '새벽 분홍 드레스', color: 'pink', theme: 'rose' },
-    {
-      silhouette: 'ballgown',
-      main: '#f4a7c3',
-      dark: '#d47398',
-      trim: '#ffe3ee',
-      neckline: 'halter',
-      deco: 'frill',
-      decoColor: '#ffd9e8',
-    },
-  ),
-  dress(
-    { id: 'dress-lamp-violet', name: '보라 램프 바지옷', color: 'purple', theme: 'night' },
-    {
-      silhouette: 'pants',
-      main: '#a678de',
-      dark: '#7a4bb5',
-      trim: '#ffd76a',
-      neckline: 'halter',
-      deco: 'gold',
-      decoColor: '#ffd76a',
-    },
-  ),
-  dress(
-    { id: 'dress-flame-red', name: '빨강 열정 드레스', color: 'red', theme: 'royal' },
-    {
-      silhouette: 'gown',
-      main: '#e2596b',
-      dark: '#b23348',
-      trim: '#ffd76a',
-      neckline: 'off',
-      deco: 'gold',
-      decoColor: '#ffd76a',
-    },
-  ),
-  dress(
-    { id: 'dress-vine-green', name: '초록 덩굴 드레스', color: 'green', theme: 'forest' },
-    {
-      silhouette: 'mermaid',
-      main: '#6cc47f',
-      dark: '#3f9257',
-      trim: '#d9f5df',
-      neckline: 'strap',
-      deco: 'leaf',
-      decoColor: '#cdeed4',
-    },
-  ),
-  dress(
-    { id: 'dress-desert-orange', name: '모래빛 사막 드레스', color: 'orange', theme: 'desert' },
-    {
-      silhouette: 'aline',
-      main: '#f0a05a',
-      dark: '#cd7833',
-      trim: '#ffe0b8',
-      neckline: 'strap',
-      deco: 'gold',
-      decoColor: '#ffe0b8',
-    },
-  ),
-  dress(
-    { id: 'dress-ball-lavender', name: '라벤더 무도회 드레스', color: 'purple', theme: 'royal' },
-    {
-      silhouette: 'ballgown',
-      main: '#c9aee8',
-      dark: '#9b78c9',
-      trim: '#f3e8ff',
-      neckline: 'puff',
-      deco: 'star',
-      decoColor: '#ffffff',
-    },
-  ),
-  dress(
-    { id: 'dress-night-navy', name: '밤하늘 드레스', color: 'blue', theme: 'night' },
-    {
-      silhouette: 'gown',
-      main: '#5566c4',
-      dark: '#2b3480',
-      trim: '#ffe37a',
-      neckline: 'off',
-      deco: 'star',
-      decoColor: '#ffe37a',
-    },
-  ),
-  dress(
-    { id: 'dress-swan-white', name: '백조 하양 드레스', color: 'white', theme: 'fairy' },
-    {
-      silhouette: 'aline',
-      main: '#fbfaff',
-      dark: '#dcd8ea',
-      trim: '#e9d9f5',
-      neckline: 'puff',
-      deco: 'sparkle',
-      decoColor: '#cbb6e4',
-    },
-  ),
+  dress({ id: 'dress-mint', name: '민트 꽃 드레스', color: 'teal', theme: 'flower' }, ['dress1']),
+  dress({ id: 'dress-pink-frill', name: '분홍 프릴 드레스', color: 'pink', theme: 'rose' }, ['dress6']),
+  dress({ id: 'dress-red-royal', name: '빨강 궁전 드레스', color: 'red', theme: 'royal' }, ['dress5']),
+  dress({ id: 'dress-white-goddess', name: '하얀 여신 드레스', color: 'white', theme: 'snow' }, ['dress7']),
+  dress({ id: 'dress-gold-ball', name: '황금 드레스', color: 'gold', theme: 'royal' }, [['dress1', '#e8b93a']]),
+  dress({ id: 'dress-sky-frill', name: '하늘 프릴 드레스', color: 'blue', theme: 'snow' }, [['dress6', '#7fb6f2']]),
+  dress({ id: 'dress-lilac-frill', name: '라일락 프릴 드레스', color: 'purple', theme: 'fairy' }, [['dress6', '#b48ae0']]),
+  dress({ id: 'dress-berry', name: '딸기 드레스', color: 'pink', theme: 'flower' }, ['frou3', 'berry-top1']),
+  dress({ id: 'dress-galaxy', name: '별하늘 드레스', color: 'purple', theme: 'star' }, ['pleat3', 'witch-top3']),
+  dress({ id: 'dress-night-blue', name: '파란 밤 드레스', color: 'blue', theme: 'night' }, ['frou2', 'witch-top2']),
+  dress({ id: 'dress-snowflake', name: '눈꽃 드레스', color: 'white', theme: 'snow' }, ['drape2', 'witch-top4']),
+  dress({ id: 'dress-forest-fairy', name: '숲속 요정 옷', color: 'green', theme: 'forest' }, ['fairy-bottom', 'fairy-top']),
+  dress({ id: 'dress-bunny-apron', name: '토끼 앞치마 드레스', color: 'blue', theme: 'flower' }, [
+    'skirt-frill',
+    'top-frill',
+    'apron',
+  ]),
+  dress({ id: 'dress-desert', name: '사막 여행 옷', color: 'brown', theme: 'desert' }, ['bottom5', 'cottage-top1']),
+  dress({ id: 'dress-white-tee', name: '하얀 원피스', color: 'white' }, ['dress2']),
+  dress({ id: 'mermaid-teal', name: '청록 인어 꼬리', color: 'teal', theme: 'sea' }, ['tail6', 'top-shell']),
+  dress({ id: 'mermaid-pink', name: '분홍 인어 꼬리', color: 'pink', theme: 'sea' }, ['tail11', 'top-shell']),
+  dress({ id: 'mermaid-purple', name: '보라 인어 꼬리', color: 'purple', theme: 'sea' }, ['tail10', 'top-shell']),
+  dress({ id: 'mermaid-blue', name: '파랑 인어 꼬리', color: 'blue', theme: 'sea' }, ['tail7', 'top-shell']),
+  dress({ id: 'mermaid-gold', name: '황금 인어 꼬리', color: 'gold', theme: 'sea' }, ['tail3', 'top-shell']),
 ]
 
-// ── 머리 8 ─────────────────────────────────────────────────────
-
-const BROWN = { base: '#4a2e24', dark: '#2c1913', shine: '#8a5a48' }
+// ── 머리 16 ────────────────────────────────────────────────────
 
 const HAIRS: Item[] = [
-  hair({ id: 'hair-long-brown', name: '긴 생머리', color: 'brown' }, { style: 'long', ...BROWN }),
-  hair({ id: 'hair-wave-brown', name: '웨이브 머리', color: 'brown' }, { style: 'wave', ...BROWN }),
-  hair({ id: 'hair-braid-brown', name: '땋은 머리', color: 'brown' }, { style: 'braid', ...BROWN }),
-  hair({ id: 'hair-twin-brown', name: '양갈래 머리', color: 'brown' }, { style: 'twin', ...BROWN }),
-  hair({ id: 'hair-bun-brown', name: '올림머리', color: 'brown', theme: 'royal' }, { style: 'bun', ...BROWN }),
-  hair(
-    { id: 'hair-long-red', name: '붉은 긴 머리', color: 'red', theme: 'sea' },
-    { style: 'long', base: '#d1583a', dark: '#a03a26', shine: '#f08a68' },
-  ),
-  hair(
-    { id: 'hair-braid-silver', name: '은빛 땋은 머리', color: 'silver', theme: 'snow' },
-    { style: 'braid', base: '#e3eaf6', dark: '#b3bfd4', shine: '#ffffff' },
-  ),
-  hair(
-    { id: 'hair-wave-gold', name: '금빛 웨이브', color: 'gold', theme: 'royal' },
-    { style: 'wave', base: '#f0cf7a', dark: '#cfa544', shine: '#fff0c0' },
-  ),
+  hair({ id: 'hair-long', name: '긴 생머리', color: 'brown' }, { style: 10, bangs: 2 }),
+  hair({ id: 'hair-wave', name: '웨이브 머리', color: 'brown', theme: 'flower' }, { style: 1, bangs: 1 }),
+  hair({ id: 'hair-pony', name: '높은 포니테일', color: 'brown' }, { style: 2, bangs: 5 }),
+  hair({ id: 'hair-updo', name: '올림머리', color: 'brown', theme: 'royal' }, { style: 3, bangs: 9 }),
+  hair({ id: 'hair-bob', name: '찰랑 단발', color: 'brown' }, { style: 4, bangs: 3 }),
+  hair({ id: 'hair-short', name: '짧은 단발', color: 'brown' }, { style: 5, bangs: 2 }),
+  hair({ id: 'hair-side', name: '옆으로 묶은 머리', color: 'brown' }, { style: 6, bangs: 12 }),
+  hair({ id: 'hair-mini-bun', name: '작은 똥머리', color: 'brown' }, { style: 7, bangs: 8 }),
+  hair({ id: 'hair-side-long', name: '긴 옆머리', color: 'brown' }, { style: 8, bangs: 4 }),
+  hair({ id: 'hair-big-bun', name: '큰 올림머리', color: 'brown', theme: 'royal' }, { style: 9, bangs: 10 }),
+  hair({ id: 'hair-long-wave', name: '긴 웨이브', color: 'brown', theme: 'rose' }, { style: 11, bangs: 6 }),
+  hair({ id: 'hair-curly-bob', name: '곱슬 단발', color: 'brown' }, { style: 12, bangs: 13 }),
+  pic('hair', { id: 'hair-rainbow-lilac', name: '무지개 보라 머리', color: 'purple', theme: 'star' }, ['party-hair1']),
+  pic('hair', { id: 'hair-rainbow-pink', name: '무지개 분홍 머리', color: 'pink', theme: 'star' }, ['party-hair2']),
+  pic('hair', { id: 'hair-rainbow-green', name: '무지개 초록 머리', color: 'green', theme: 'fairy' }, ['party-hair3']),
+  pic('hair', { id: 'hair-rainbow-blue', name: '무지개 파랑 머리', color: 'blue', theme: 'fairy' }, ['party-hair4']),
 ]
 
-// ── 왕관 6 ─────────────────────────────────────────────────────
+// ── 왕관·머리 장식 ─────────────────────────────────────────────
 
 const CROWNS: Item[] = [
   crown(
@@ -298,103 +167,78 @@ const CROWNS: Item[] = [
   ),
 ]
 
-// ── 구두 5 ─────────────────────────────────────────────────────
+const HEADWEAR: Item[] = [
+  pic('crown', { id: 'crown-violet-flowers', name: '보라 꽃 화관', color: 'purple', theme: 'flower' }, ['flower-crown']),
+  pic('crown', { id: 'crown-gold-flowers', name: '꽃 머리띠', color: 'gold', theme: 'flower' }, ['flower-band']),
+  pic('crown', { id: 'crown-hibiscus', name: '하와이 꽃핀', color: 'orange', theme: 'sea' }, ['hibiscus']),
+  pic('crown', { id: 'crown-red-band', name: '빨간 머리띠', color: 'red' }, ['headband']),
+  pic('crown', { id: 'crown-bunny-ears', name: '토끼 귀', color: 'blue', theme: 'fairy' }, ['bunny-ears']),
+  pic('crown', { id: 'crown-antlers', name: '사슴뿔', color: 'brown', theme: 'forest' }, ['antlers']),
+  pic('crown', { id: 'hat-party-1', name: '고깔모자', color: 'purple', theme: 'star' }, ['party-hat1']),
+  pic('crown', { id: 'hat-party-2', name: '분홍 고깔모자', color: 'pink', theme: 'star' }, ['party-hat2']),
+]
+
+// ── 구두 15 ────────────────────────────────────────────────────
 
 const SHOES: Item[] = [
-  shoes(
-    { id: 'shoes-glass', name: '유리 구두', color: 'silver', theme: 'royal' },
-    { style: 'glass', main: '#cfe9ff', dark: '#86b8dd', accent: '#ffffff' },
-  ),
-  shoes(
-    { id: 'shoes-gold', name: '황금 구두', color: 'gold', theme: 'royal' },
-    { style: 'pump', main: '#f5cf6a', dark: '#c99b2c', accent: '#fff3c4' },
-  ),
-  shoes(
-    { id: 'shoes-ribbon-pink', name: '분홍 리본 구두', color: 'pink', theme: 'rose' },
-    { style: 'ribbon', main: '#f4a7c3', dark: '#d47398', accent: '#fff0f5' },
-  ),
-  shoes(
-    { id: 'shoes-ballet-silver', name: '은빛 발레슈즈', color: 'silver', theme: 'fairy' },
-    { style: 'ballet', main: '#e8ecf5', dark: '#c2cadb', accent: '#f4a7c3' },
-  ),
-  shoes(
-    { id: 'shoes-boot-red', name: '빨강 부츠', color: 'red', theme: 'royal' },
-    { style: 'boot', main: '#e2596b', dark: '#a83249', accent: '#ffd76a' },
-  ),
+  shoes({ id: 'shoes-glass', name: '유리 구두', color: 'blue', theme: 'royal' }, ['shoes-glass']),
+  shoes({ id: 'shoes-cream', name: '크림 리본 구두', color: 'white', theme: 'flower' }, ['shoes-strap']),
+  shoes({ id: 'shoes-violet', name: '보라 구두', color: 'purple', theme: 'fairy' }, ['shoes-violet']),
+  shoes({ id: 'shoes-fairy', name: '꽃 샌들', color: 'purple', theme: 'forest' }, ['shoes-fairy']),
+  shoes({ id: 'shoes-flip', name: '바닷가 샌들', color: 'purple', theme: 'sea' }, ['shoes-flip']),
+  shoes({ id: 'shoes-party-blue', name: '파랑 구두', color: 'blue' }, ['party-shoes1']),
+  shoes({ id: 'shoes-party-pink', name: '분홍 구두', color: 'pink', theme: 'rose' }, ['party-shoes2']),
+  shoes({ id: 'shoes-party-green', name: '초록 구두', color: 'green' }, ['party-shoes3']),
+  shoes({ id: 'shoes-party-yellow', name: '노랑 구두', color: 'gold' }, ['party-shoes4']),
+  shoes({ id: 'shoes-pink-socks', name: '분홍 양말 구두', color: 'pink' }, ['party-socks1', 'party-shoes2']),
+  shoes({ id: 'shoes-silver', name: '은빛 구두', color: 'silver', theme: 'snow' }, ['shoes1']),
+  shoes({ id: 'shoes-black', name: '까만 구두', color: 'silver' }, ['shoes2']),
+  shoes({ id: 'shoes-boots', name: '갈색 부츠', color: 'brown', theme: 'desert' }, ['shoes3']),
+  shoes({ id: 'shoes-green', name: '숲 구두', color: 'green', theme: 'forest' }, ['shoes4']),
+  shoes({ id: 'shoes-gold', name: '황금 구두', color: 'gold', theme: 'royal' }, [['shoes-strap', '#e8b93a']]),
 ]
 
-// ── 목걸이 5 ───────────────────────────────────────────────────
+// ── 목걸이 8 ───────────────────────────────────────────────────
 
 const NECKLACES: Item[] = [
-  necklace(
-    { id: 'neck-pearl', name: '진주 목걸이', color: 'white', theme: 'royal' },
-    { style: 'pearl', chain: '#e0e6f0', gem: '#fdfcff' },
-  ),
-  necklace(
-    { id: 'neck-heart-pink', name: '하트 목걸이', color: 'pink', theme: 'rose' },
-    { style: 'heart', chain: '#f5cf6a', gem: '#f4708f' },
-  ),
-  necklace(
-    { id: 'neck-star-gold', name: '별 목걸이', color: 'gold', theme: 'star' },
-    { style: 'star', chain: '#f5cf6a', gem: '#ffe37a' },
-  ),
-  necklace(
-    { id: 'neck-shell-teal', name: '조개 목걸이', color: 'teal', theme: 'sea' },
-    { style: 'shell', chain: '#cfe9ff', gem: '#4fc3c0' },
-  ),
-  necklace(
-    { id: 'neck-snow-blue', name: '눈꽃 목걸이', color: 'blue', theme: 'snow' },
-    { style: 'snow', chain: '#cfeaff', gem: '#ffffff' },
-  ),
+  necklace({ id: 'neck-pearl', name: '진주 목걸이', color: 'white', theme: 'royal' }, ['pearl']),
+  necklace({ id: 'neck-moon', name: '달 목걸이', color: 'silver', theme: 'star' }, ['moon-silver']),
+  necklace({ id: 'neck-lace', name: '레이스 목걸이', color: 'white', theme: 'snow' }, ['choker-white']),
+  necklace({ id: 'neck-shell', name: '조개 목걸이', color: 'white', theme: 'sea' }, ['shell-necklace']),
+  necklace({ id: 'neck-party-1', name: '보라 리본 목걸이', color: 'purple' }, ['party-collar1']),
+  necklace({ id: 'neck-party-2', name: '초록 리본 목걸이', color: 'green' }, ['party-collar2']),
+  necklace({ id: 'neck-party-3', name: '빨강 리본 목걸이', color: 'red', theme: 'rose' }, ['party-collar3']),
+  necklace({ id: 'neck-party-4', name: '노랑 리본 목걸이', color: 'gold' }, ['party-collar4']),
 ]
 
-// ── 장갑 4 ─────────────────────────────────────────────────────
+// ── 장갑·팔찌 7 ────────────────────────────────────────────────
 
 const GLOVES: Item[] = [
-  gloves(
-    { id: 'glove-long-white', name: '흰 긴 장갑', color: 'white', theme: 'royal' },
-    { long: true, main: '#fbfbff', trim: '#e0d4f0' },
-  ),
-  gloves(
-    { id: 'glove-long-pink', name: '분홍 긴 장갑', color: 'pink', theme: 'rose' },
-    { long: true, main: '#f6b8cd', trim: '#ffe3ee' },
-  ),
-  gloves(
-    { id: 'glove-short-silver', name: '은빛 짧은 장갑', color: 'silver', theme: 'snow' },
-    { long: false, main: '#e2e8f2', trim: '#cfd6e2' },
-  ),
-  gloves(
-    { id: 'glove-short-blue', name: '하늘 짧은 장갑', color: 'blue', theme: 'snow' },
-    { long: false, main: '#a8d6f7', trim: '#ddf0ff' },
-  ),
+  gloves({ id: 'gloves-long', name: '긴 장갑', color: 'white', theme: 'royal' }, ['gloves1']),
+  gloves({ id: 'gloves-white', name: '하얀 장갑', color: 'white', theme: 'snow' }, ['gloves-white']),
+  gloves({ id: 'gloves-flower', name: '꽃 팔찌', color: 'purple', theme: 'forest' }, ['gloves-fairy']),
+  gloves({ id: 'bracelet-1', name: '알록 팔찌', color: 'pink', theme: 'star' }, ['bracelet1']),
+  gloves({ id: 'bracelet-2', name: '노랑 팔찌', color: 'gold' }, ['bracelet2']),
+  gloves({ id: 'bracelet-3', name: '파랑 팔찌', color: 'blue' }, ['bracelet3']),
+  gloves({ id: 'bracelet-4', name: '반짝 팔찌', color: 'gold', theme: 'star' }, ['bracelet4']),
 ]
 
-// ── 망토 5 ─────────────────────────────────────────────────────
+// ── 망토 5 (한 그림에 색을 입혔다) ─────────────────────────────
+
+function cape(row: Row, tint?: string): Item {
+  const c = (n: ArtName): Layer => (tint ? [n, tint] : n)
+  return pic('cape', row, [c('cape-back')], [c('cape')])
+}
 
 const CAPES: Item[] = [
-  cape(
-    { id: 'cape-red-velvet', name: '빨강 벨벳 망토', color: 'red', theme: 'royal' },
-    { main: '#cf3f57', dark: '#93223a', lining: '#ffe0c9', clasp: '#f5cf6a' },
-  ),
-  cape(
-    { id: 'cape-snow-blue', name: '눈나라 망토', color: 'blue', theme: 'snow' },
-    { main: '#bfe4ff', dark: '#7fb6dd', lining: '#ffffff', clasp: '#e3eaf6' },
-  ),
-  cape(
-    { id: 'cape-pink-tulle', name: '분홍 튤 망토', color: 'pink', theme: 'fairy' },
-    { main: '#f7c6da', dark: '#e194b4', lining: '#fff3f8', clasp: '#f5cf6a' },
-  ),
-  cape(
-    { id: 'cape-purple-star', name: '보라 별 망토', color: 'purple', theme: 'night' },
-    { main: '#7b5bd6', dark: '#4d3699', lining: '#ffe37a', clasp: '#ffe37a' },
-  ),
-  cape(
-    { id: 'cape-gold-royal', name: '황금 망토', color: 'gold', theme: 'royal' },
-    { main: '#f0c04a', dark: '#c99b2c', lining: '#fff3c4', clasp: '#e2596b' },
-  ),
+  cape({ id: 'cape-forest', name: '숲속 망토', color: 'green', theme: 'forest' }),
+  cape({ id: 'cape-rose', name: '장미 망토', color: 'pink', theme: 'rose' }, '#e05a7a'),
+  cape({ id: 'cape-snow', name: '눈나라 망토', color: 'blue', theme: 'snow' }, '#7fb6f2'),
+  cape({ id: 'cape-gold', name: '황금 망토', color: 'gold', theme: 'royal' }, '#f0c04a'),
+  cape({ id: 'cape-star', name: '보라 별 망토', color: 'purple', theme: 'star' }, '#9a6ad0'),
 ]
 
-// ── 날개 4 ─────────────────────────────────────────────────────
+// ── 날개 ───────────────────────────────────────────────────────
 
 const WINGS: Item[] = [
   wings(
@@ -415,28 +259,25 @@ const WINGS: Item[] = [
   ),
 ]
 
-// ── 귀걸이 4 ───────────────────────────────────────────────────
-
-const EARRINGS: Item[] = [
-  earrings(
-    { id: 'ear-pearl', name: '진주 귀걸이', color: 'white', theme: 'royal' },
-    { style: 'pearl', metal: '#e0e6f0', gem: '#fdfcff' },
-  ),
-  earrings(
-    { id: 'ear-star-gold', name: '별 귀걸이', color: 'gold', theme: 'star' },
-    { style: 'star', metal: '#f5cf6a', gem: '#ffe37a' },
-  ),
-  earrings(
-    { id: 'ear-heart-pink', name: '하트 귀걸이', color: 'pink', theme: 'rose' },
-    { style: 'heart', metal: '#f5cf6a', gem: '#f4708f' },
-  ),
-  earrings(
-    { id: 'ear-drop-blue', name: '물방울 귀걸이', color: 'blue', theme: 'sea' },
-    { style: 'drop', metal: '#cfe9ff', gem: '#7fb6f2' },
-  ),
+const WINGS_PIC: Item[] = [
+  pic('wings', { id: 'wing-glass', name: '유리 요정 날개', color: 'white', theme: 'fairy' }, [], ['wings-fairy']),
 ]
 
-// ── 소품 5 ─────────────────────────────────────────────────────
+// ── 귀걸이 9 ───────────────────────────────────────────────────
+
+const EARRINGS: Item[] = [
+  earrings({ id: 'ear-ring-gold', name: '금 고리 귀걸이', color: 'gold', theme: 'royal' }, ['ear-ring1']),
+  earrings({ id: 'ear-ring-silver', name: '은 고리 귀걸이', color: 'silver' }, ['ear-ring2']),
+  earrings({ id: 'ear-star-gold', name: '별 귀걸이', color: 'gold', theme: 'star' }, ['ear-star1']),
+  earrings({ id: 'ear-star-silver', name: '은별 귀걸이', color: 'silver', theme: 'star' }, ['ear-star2']),
+  earrings({ id: 'ear-flower', name: '보라 꽃 귀걸이', color: 'purple', theme: 'forest' }, ['fairy-earrings']),
+  earrings({ id: 'ear-party-1', name: '보라 방울 귀걸이', color: 'purple' }, ['party-earrings1']),
+  earrings({ id: 'ear-party-2', name: '빨강 방울 귀걸이', color: 'red' }, ['party-earrings2']),
+  earrings({ id: 'ear-party-3', name: '분홍 방울 귀걸이', color: 'pink', theme: 'rose' }, ['party-earrings3']),
+  earrings({ id: 'ear-party-4', name: '초록 방울 귀걸이', color: 'green' }, ['party-earrings4']),
+]
+
+// ── 소품 ───────────────────────────────────────────────────────
 
 const WANDS: Item[] = [
   wand(
@@ -461,17 +302,25 @@ const WANDS: Item[] = [
   ),
 ]
 
+const WANDS_PIC: Item[] = [
+  pic('wand', { id: 'pet-bunny', name: '토끼 친구', color: 'white', theme: 'fairy' }, ['bunny']),
+  pic('wand', { id: 'surfboard', name: '서핑보드', color: 'blue', theme: 'sea' }, ['surfboard']),
+]
+
 export const ITEMS: readonly Item[] = [
   ...DRESSES,
   ...HAIRS,
   ...CROWNS,
+  ...HEADWEAR,
   ...SHOES,
   ...NECKLACES,
   ...GLOVES,
   ...CAPES,
   ...WINGS,
+  ...WINGS_PIC,
   ...EARRINGS,
   ...WANDS,
+  ...WANDS_PIC,
 ]
 
 const BY_ID = new Map<string, Item>(ITEMS.map((i) => [i.id, i]))

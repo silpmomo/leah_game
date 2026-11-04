@@ -9,6 +9,7 @@
 import type { Shape } from '../engine/shapes'
 import { tintShapes } from '../engine/color'
 import type { Category } from './kinds'
+import { HAIR_SHADES } from './body'
 
 export type Tints = Partial<Record<Category, number>>
 
@@ -18,7 +19,8 @@ export const TINTABLE: readonly Category[] = ['dress', 'hair', 'shoes', 'cape']
 /** 참고작 스크린샷에서 뽑은 팔레트 (docs/DESIGN.md 4절) */
 export const SWATCHES: Record<string, readonly string[]> = {
   dress: ['#9a9ac7', '#89a7c9', '#8b1f33', '#e0c15c', '#c9d35b', '#e9a1a8'],
-  hair: ['#8a6a60', '#f1efe9', '#d98a8f', '#6d7a93', '#8e8f52', '#7e6090'],
+  /** 머리는 팩에 그려진 색 그대로 (body.ts HAIR_SHADES 1~7) */
+  hair: HAIR_SHADES.slice(1).map((h) => h.css),
   shoes: ['#b7b7b7', '#ffe08a', '#ff8fb0', '#ff7a4d', '#5ec2f5', '#2a2a2a'],
   cape: ['#e05a7a', '#5a8fe0', '#f0c04a', '#6fcf8a', '#9a6ad0', '#f7f1e8'],
 }
@@ -50,6 +52,11 @@ export function sanitizeTints(v: unknown): Tints {
     if (i >= 1 && i <= swatchCount(cat)) out[cat] = i
   }
   return out
+}
+
+/** 머리 견본 번호 = 팩 머리 색 번호 (0 = 원래 색) */
+export function hairShade(tints: Tints | undefined): number {
+  return tints?.hair ?? 0
 }
 
 /** 분류의 조각 묶음에 견본 색을 입힌다. 견본이 없으면 그대로 */

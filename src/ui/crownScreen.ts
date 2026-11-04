@@ -19,6 +19,7 @@ import {
   type CrownDesign,
 } from '../doll/custom'
 import { composeDoll, type Outfit, type Resolve } from '../doll/outfit'
+import { XF, xfPoint } from '../doll/fit'
 import { cropFit, paintCrop, paintShape } from '../render/paint'
 import {
   UI,
@@ -38,7 +39,7 @@ import {
  * y 를 0 보다 위에서 시작해 왕관 위에 여유를 둔다. 딱 맞추면 별 보석처럼
  * 위로 솟는 모양이 잘린다.
  */
-export const HEAD_VIEW: Rect = { x: 64, y: 14, w: 72, h: 84 }
+export const HEAD_VIEW: Rect = { x: -49, y: 40, w: 298, h: 190 }
 export const STAGE: Rect = { x: 18, y: 84, w: VIEW_W - 36, h: 206 }
 
 const GEM_X = 23
@@ -76,8 +77,9 @@ const SLOT_R = 18
 /** 보석 칸 i 의 화면 좌표 */
 export function slotPoint(i: number): [number, number] {
   const fit = cropFit(STAGE, HEAD_VIEW)
-  const [sx, sy] = SLOTS[i]!
-  return [fit.dx + sx * fit.k, fit.dy + (sy - SLOT_LIFT) * fit.k]
+  const [vx, vy] = SLOTS[i]!
+  const [sx, sy] = xfPoint(XF.crown, vx, vy - SLOT_LIFT)
+  return [fit.dx + sx * fit.k, fit.dy + sy * fit.k]
 }
 
 export function crownHit(px: number, py: number, savedCount: number): CrownAction | null {

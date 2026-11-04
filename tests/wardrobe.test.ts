@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ITEMS, itemById, itemsOf, THUMB_VIEW } from '../src/doll/wardrobe'
+import { isArtName } from '../src/doll/art'
 import { CATEGORIES, COLOR_NAME, THEME_NAME } from '../src/doll/kinds'
 import { assertValidWardrobe } from '../src/doll/schema'
 import type { Item } from '../src/doll/kinds'
@@ -33,21 +34,36 @@ describe('옷장 데이터', () => {
 
   it('아이템의 그림 조각이 비어 있지 않다', () => {
     for (const it of ITEMS) {
-      const pieces = [...(it.back ?? []), ...it.front, ...(it.sleeves ?? [])]
+      const pieces = [...(it.back ?? []), ...it.front]
       expect(pieces.length).toBeGreaterThan(0)
     }
   })
 
-  it('썸네일 영역은 분류마다 정해진 값을 쓴다', () => {
+  it('벡터 소품은 분류 썸네일, 그림 아이템은 제 그림을 감싼 영역을 쓴다', () => {
     for (const it of ITEMS) {
-      if (it.custom) continue
-      expect(it.thumb).toEqual(THUMB_VIEW[it.cat])
+      const pieces = [...(it.back ?? []), ...it.front]
+      if (pieces.some((p) => p.img)) {
+        for (const p of pieces) {
+          if (!p.img) continue
+          // 그림 가운데가 썸네일 안에 들어 있다
+          const cx = p.img.x + p.img.w / 2
+          const cy = p.img.y + p.img.h / 2
+          expect(cx).toBeGreaterThanOrEqual(it.thumb.x)
+          expect(cx).toBeLessThanOrEqual(it.thumb.x + it.thumb.w)
+          expect(cy).toBeGreaterThanOrEqual(it.thumb.y)
+          expect(cy).toBeLessThanOrEqual(it.thumb.y + it.thumb.h)
+        }
+      } else {
+        expect(it.thumb).toEqual(THUMB_VIEW[it.cat as keyof typeof THUMB_VIEW])
+      }
     }
   })
 
-  it('장갑은 팔 위(sleeves)에 그린다', () => {
-    for (const g of itemsOf('gloves')) {
-      expect(g.sleeves?.length ?? 0).toBeGreaterThan(0)
+  it('그림 조각은 모두 에셋 목록(art.gen.ts)에 있다', () => {
+    for (const it of ITEMS) {
+      for (const p of [...(it.back ?? []), ...it.front]) {
+        if (p.img) expect(isArtName(p.img.name)).toBe(true)
+      }
     }
   })
 
@@ -61,14 +77,14 @@ describe('옷장 데이터', () => {
   it('itemById 는 없는 아이디에 undefined 를 준다', () => {
     expect(itemById('없는옷')).toBeUndefined()
     expect(itemById(undefined)).toBeUndefined()
-    expect(itemById('dress-star-blue')?.cat).toBe('dress')
+    expect(itemById('dress-night-blue')?.cat).toBe('dress')
   })
 
   it('검사기는 잘못된 데이터를 잡는다', () => {
     const good = ITEMS[0] as Item
     expect(() => assertValidWardrobe([good, good])).toThrow(/아이디가 겹친다/)
     expect(() =>
-      assertValidWardrobe([{ ...good, front: [], back: undefined, sleeves: undefined }]),
+      assertValidWardrobe([{ ...good, front: [], back: undefined }]),
     ).toThrow(/조각/)
     expect(() =>
       assertValidWardrobe([{ ...good, color: 'lime' as unknown as Item['color'] }]),
