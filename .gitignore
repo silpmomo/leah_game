@@ -4,3 +4,6 @@ dist/
 __pycache__/
 *.pyc
 .DS_Store
+
+# 그림 에셋 — 비공개 저장소(leah_game_assets)에서 복사해 온다. 커밋 금지
+public/assets/

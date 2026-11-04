@@ -26,6 +26,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # 그림 에셋은 비공개 저장소에 있다 (라이선스상 공개 저장소에 둘 수 없다).
+      # 읽기 전용 배포 키로 doll/ 만 받아 public/assets/doll/ 에 넣는다.
+      - uses: actions/checkout@v4
+        with:
+          repository: silpmomo/leah_game_assets
+          ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
+          path: .assets
+          sparse-checkout: doll
+      - run: mkdir -p public/assets && cp -R .assets/doll public/assets/doll
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
