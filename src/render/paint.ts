@@ -5,6 +5,7 @@
  * 정의는 전부 순수 모듈로 남고 node 테스트에서 검증된다.
  */
 import type { Paint, Shape } from '../engine/shapes'
+import { artImage } from './images'
 
 /**
  * Path2D 캐시.
@@ -38,6 +39,24 @@ function toStyle(ctx: CanvasRenderingContext2D, p: Paint): string | CanvasGradie
 }
 
 export function paintShape(ctx: CanvasRenderingContext2D, s: Shape): void {
+  if (s.xf) {
+    const [k, dx, dy] = s.xf
+    ctx.save()
+    ctx.translate(dx, dy)
+    ctx.scale(k, k)
+    paintShape(ctx, { ...s, xf: undefined })
+    ctx.restore()
+    return
+  }
+  if (s.img) {
+    const im = artImage(s.img.name, s.img.tint)
+    if (!im) return
+    const prev = ctx.globalAlpha
+    if (s.alpha !== undefined) ctx.globalAlpha = prev * s.alpha
+    ctx.drawImage(im, s.img.x, s.img.y, s.img.w, s.img.h)
+    ctx.globalAlpha = prev
+    return
+  }
   if (!s.d) return
   const path = pathOf(s.d)
   const prevAlpha = ctx.globalAlpha

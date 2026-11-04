@@ -130,9 +130,43 @@ export function tintShapes(shapes: readonly Shape[], targetCss: string): Shape[]
   if (!t) return [...shapes]
   const target = rgbToHsl(t)
   return shapes.map((s) => {
+    // 그림 조각은 그릴 때 픽셀 색조를 돌린다 (render/images.ts)
+    if (s.img) return { ...s, img: { ...s.img, tint: targetCss } }
     const out: Shape = { ...s }
     if (s.fill) out.fill = retintPaint(s.fill, target)
     if (s.stroke) out.stroke = retintPaint(s.stroke, target)
     return out
   })
+}
+
+/**
+ * 일러스트 픽셀의 색조를 돌린다 (RGBA 배열을 제자리에서 고친다).
+ *
+ * 벡터 조각용 retint 와 규칙이 다르다. 그림에는 검은 외곽선과 흰 반사광이
+ * 픽셀로 박혀 있어서, 밝기를 목표 쪽으로 당기면 선이 뭉개진다. 그래서
+ * 무채색 픽셀(선·흰 레이스·회색 그늘)은 그대로 두고, 유채색 픽셀만
+ * 색조를 바꾸고 밝기는 조금만 옮긴다.
+ */
+export function retintPixels(data: Uint8ClampedArray, targetCss: string): void {
+  const t = parseColor(targetCss)
+  if (!t) return
+  const target = rgbToHsl(t)
+  const gray = target.s < 0.12
+  const px: Rgba = { r: 0, g: 0, b: 0, a: 1 }
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3]! === 0) continue
+    px.r = data[i]!
+    px.g = data[i + 1]!
+    px.b = data[i + 2]!
+    const hsl = rgbToHsl(px)
+    if (hsl.s < 0.12 || hsl.l < 0.08 || hsl.l > 0.96) continue
+    const l = hsl.l * 0.65 + target.l * 0.35
+    const next: Hsl = gray
+      ? { h: hsl.h, s: hsl.s * 0.08, l }
+      : { h: target.h, s: Math.min(1, hsl.s * 0.4 + target.s * 0.6), l }
+    const o = hslToRgb(next)
+    data[i] = o.r
+    data[i + 1] = o.g
+    data[i + 2] = o.b
+  }
 }

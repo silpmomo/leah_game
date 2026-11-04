@@ -35,9 +35,28 @@ export type Paint =
       stops: readonly GradientStop[]
     }
 
+/** 그림 조각(일러스트). 인형 좌표의 상자에 맞춰 그린다 */
+export type ImgRef = {
+  /** assets/doll/<name>.webp */
+  name: string
+  x: number
+  y: number
+  w: number
+  h: number
+  /** 색 견본 — 그림의 색조를 이 색으로 돌린다 */
+  tint?: string
+}
+
 export type Shape = {
-  /** SVG path 문자열. Path2D 가 그대로 먹는다 */
+  /** SVG path 문자열. Path2D 가 그대로 먹는다. 그림 조각이면 빈 문자열 */
   d: string
+  /** 있으면 경로 대신 이 그림을 그린다 */
+  img?: ImgRef
+  /**
+   * 옮겨 그리기 [배율, dx, dy]. 벡터로 그린 소품(왕관·지팡이·날개)을
+   * 일러스트 인형의 머리·손 자리에 맞출 때 쓴다
+   */
+  xf?: readonly [number, number, number]
   fill?: Paint
   stroke?: Paint
   /** 선 두께 */
