@@ -168,6 +168,7 @@ const CROWNS: Item[] = [
 ]
 
 const HEADWEAR: Item[] = [
+  pic('crown', { id: 'crown-heart-tiara', name: '하트 보석 티아라', color: 'gold', theme: 'royal' }, ['gen-tiara-heart']),
   pic('crown', { id: 'crown-violet-flowers', name: '보라 꽃 화관', color: 'purple', theme: 'flower' }, ['flower-crown']),
   pic('crown', { id: 'crown-gold-flowers', name: '꽃 머리띠', color: 'gold', theme: 'flower' }, ['flower-band']),
   pic('crown', { id: 'crown-hibiscus', name: '하와이 꽃핀', color: 'orange', theme: 'sea' }, ['hibiscus']),
@@ -260,6 +261,7 @@ const WINGS: Item[] = [
 ]
 
 const WINGS_PIC: Item[] = [
+  pic('wings', { id: 'wing-pink-fairy', name: '분홍 나비 날개', color: 'pink', theme: 'fairy' }, [], ['gen-wings-pink']),
   pic('wings', { id: 'wing-glass', name: '유리 요정 날개', color: 'white', theme: 'fairy' }, [], ['wings-fairy']),
 ]
 
@@ -303,6 +305,7 @@ const WANDS: Item[] = [
 ]
 
 const WANDS_PIC: Item[] = [
+  pic('wand', { id: 'wand-heart', name: '하트 별 요술봉', color: 'pink', theme: 'star' }, ['gen-wand-heart']),
   pic('wand', { id: 'pet-bunny', name: '토끼 친구', color: 'white', theme: 'fairy' }, ['bunny']),
   pic('wand', { id: 'surfboard', name: '서핑보드', color: 'blue', theme: 'sea' }, ['surfboard']),
 ]

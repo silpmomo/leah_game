@@ -448,6 +448,9 @@ export const ART = {
   "witch-top2": [36.06, 242.69, 123.75, 88.69],
   "witch-top3": [36.06, 242.69, 123.75, 88.69],
   "witch-top4": [36.06, 242.69, 123.75, 88.69],
+  "gen-tiara-heart": [48.44, 30.68, 103.12, 56.89],
+  "gen-wand-heart": [150.19, 213.92, 55.0, 124.9],
+  "gen-wings-pink": [-27.19, 175.25, 254.38, 151.38],
 } as const satisfies Record<string, readonly [number, number, number, number]>
 
 export type ArtName = keyof typeof ART
